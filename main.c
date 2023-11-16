@@ -26,8 +26,8 @@ void demodulation();
 void channel();
 void decoder();
 
-#define message_length 20 //the length of message
-#define codeword_length 40 //the length of codeword
+#define message_length 5 //the length of message
+#define codeword_length 10 //the length of codeword
 float code_rate; // 码率
 
 // channel coefficient
@@ -35,6 +35,7 @@ float code_rate; // 码率
 #define INF 0xFFFFFFF
 double N0, sgm; // 信道噪声
 
+PARAMETER* Parameter;
 int reg_num;//the number of the register of encoder structure
 int state_num;//the number of the state of encoder structure
 int input_len; // 每次输入的比特数，在758中为1
@@ -42,6 +43,7 @@ int input_states;
 int* state_table;//state table, the size should be defined yourself
 
 int message[message_length], codeword[codeword_length];//message and codeword，原信息和编码之后的信息
+int codeword2[codeword_length];
 int re_codeword[codeword_length];//the received codeword
 int de_message[message_length];//the decoding message
 
@@ -51,8 +53,8 @@ double rx_symbol[codeword_length][2];//the received symbols
 void main()
 {
 	code_rate = (float)message_length / (float)codeword_length;
-	PARAMETER* p = get_essential_params(7, 5, 8);
-	reg_num = p->reg_num;//the number of the register of encoder structure
+	Parameter = get_essential_params(7, 5, 8);
+	reg_num = Parameter->reg_num;//the number of the register of encoder structure
 	state_num = pow(2, reg_num);//the number of the state of encoder structure
 	input_len = 1; // 每次输入的比特数，在758中为1
 	input_states = pow(2, input_len);
@@ -79,7 +81,7 @@ void main()
 	// scanf("%d", &seq_num);
 	start = 10, finish = 20; // 起始和结束的SNR，浮点数，单位为dB
 	int SNR_step = 1; // SNR步长
-	seq_num = 5; // 仿真次数
+	seq_num = 1; // 仿真次数
 
 	for (SNR = start; SNR <= finish; SNR+=SNR_step)
 	{
@@ -135,25 +137,29 @@ void main()
 
 			//print the intermediate result
 			printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\r", progress, SNR, bit_error, BER);
+			if (DEBUG_MODE) {
+				printf("[DEBUG]:\n");
+				printf("信源序列:");
+				for (int i=0; i<message_length; i++){
+					printf("%d ", message[i]);
+				}
+				printf("\n");
+				printf("编码后序列(正确):\n");
+				for (int i=0; i<codeword_length; i++){
+					printf("%d ", codeword2[i]);
+				}
+				printf("\n实际:\n");
+				for (int i=0; i<codeword_length; i++){
+					printf("%d ", codeword[i]);
+				}
+				printf("\n\n");
+			}
 		}
 
 		//calculate the BER
-		BER = (double)bit_error / (double)(message_length*seq_num);
+		// BER = (double)bit_error / (double)(message_length*seq_num);
 
-		printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\n", progress, SNR, bit_error, BER);
-		if (DEBUG_MODE) {
-			printf("[DEBUG]:\n");
-			printf("信源序列:");
-			for (int i=0; i<message_length; i++){
-				printf("%d ", message[i]);
-			}
-			printf("\n");
-			printf("编码后序列:");
-			for (int i=0; i<codeword_length; i++){
-				printf("%d ", codeword[i]);
-			}
-			printf("\n\n");
-		}
+		// printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\n", progress, SNR, bit_error, BER);
 	}
 	// system("pause");
 }
@@ -219,15 +225,41 @@ void encoder()
 	// state: s0, s1
 	// input: u
 	// output: c1 = u + s0 + s1, c2 = u + s1
-	int s0 = 0, s1 = 0;
-	for (int ii = 0; ii < message_length; ii++){
-		codeword[ii*2] = (message[ii] + s0 + s1) % 2;
-		codeword[ii*2+1] = (message[ii] + s1) % 2;
-		// 移位
-		s1 = s0;
-		s0 = message[ii];
-	}
+	// int s0 = 0, s1 = 0;
+	// printf("\n");
+	// for (int ii = 0; ii < message_length; ii++){
+	// 	codeword2[ii*2] = (message[ii] + s0 + s1) % 2;
+	// 	codeword2[ii*2+1] = (message[ii] + s1) % 2;
+	// 	// 移位
+	// 	s1 = s0;
+	// 	s0 = message[ii];
+	// 	printf("%d %d ", codeword2[ii*2], codeword2[ii*2+1]);
+	// }
 
+	// printf("\n");
+	// 寄存器初始化及清零
+	int* curStates = (int*)malloc(sizeof(int) * (reg_num+1));
+	for (int i=0; i<reg_num+1; i++) {
+		curStates[i] = 0;
+	}
+	// 对 message 第i位编码
+	for (int i = 0; i < message_length; i++) {
+		// 寄存器先移位
+		for (int n = reg_num; n > 0; n--) {
+			curStates[n] = curStates[n-1];
+		}
+		curStates[0] = message[i];
+		// 再对每一个输出 (c11, c12):
+		for (int j = 0; j < Parameter->nout; j++) {
+			codeword[Parameter->nout * i + j] = 0;
+			for (int k = 0; k < reg_num+1; k++) {
+ 				codeword[Parameter->nout * i + j] ^= curStates[k] * Parameter->trans_mat[(reg_num+1) * j + k]; 
+			}
+			// printf("%d ", codeword[Parameter->nout * i + j]);
+		}
+	}
+	// printf("\n");
+	free(curStates);
 }
 
 void modulation()
@@ -290,5 +322,10 @@ void decoder()
 
 	// Viterbi decode
 	// 硬判决维特比译码
-
+	int TLineNum = input_len * state_num;
+	TLine *TLineTable = (TLine *)malloc(sizeof(TLine) * TLineNum);
+	for (int i = 0; i < TLineNum; i++) {
+		TLineTable[i].input = state_table[i*5];
+	}
+	
 } 

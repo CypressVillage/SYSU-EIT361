@@ -11,7 +11,8 @@ int array2int(int* arr, int len);
 typedef struct {
     int reg_num;
     int* trans_mat;
-    float code_rate;
+    int nin;
+    int nout;
 } PARAMETER;
 
 PARAMETER* get_essential_params(int A, int B, int C);

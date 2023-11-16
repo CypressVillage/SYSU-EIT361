@@ -55,7 +55,8 @@ int array2int(int* arr, int len){
 PARAMETER* get_essential_params(int a, int b, int N){
 
     PARAMETER* params = (PARAMETER*)malloc(sizeof(PARAMETER));
-    params->code_rate = 1/2;
+    params->nin = 1;
+    params->nout = 2;
     int section = (int)log2(N);
 
     int* a_declist = int2array(a, get_len(a, DEC), DEC);
