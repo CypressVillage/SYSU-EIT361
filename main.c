@@ -206,9 +206,7 @@ void statetable()
 			// printf("%d ", codeword[Parameter->nout * i + j]);
 			}
 			
-			// outArray[0] = inputArray[0] ^ stateArray[0] ^ stateArray[1];
-			// outArray[1] = inputArray[0] ^ stateArray[1];
-			state_table[5*line_num+3] = array2int(outArray, reg_num); // Out
+			state_table[5*line_num+3] = array2int(outArray, Parameter->nout); // Out
 
 			state_table[5*line_num+4] = line_num+1; // Line Number
 
