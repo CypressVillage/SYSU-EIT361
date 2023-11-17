@@ -138,7 +138,7 @@ void main()
 			BER = (double)bit_error / (double)(message_length * seq);
 
 			// print the intermediate result
-			printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\r", progress, SNR, bit_error, BER);
+			printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\n", progress, SNR, bit_error, BER);
 			if (DEBUG_MODE)
 			{
 				printf("[DEBUG]:\n");
@@ -238,8 +238,8 @@ void trellis()
 	for (int i = 0; i < state_num; i++)
 	{
 		TNodeTable[i].data = i;
-		TNodeTable[i].from = (TLine *)malloc(sizeof(TLine) * input_states);
-		TNodeTable[i].to = (TLine *)malloc(sizeof(TLine) * input_states);
+		TNodeTable[i].LeftLines = (TLine *)malloc(sizeof(TLine) * input_states);
+		TNodeTable[i].RightLines = (TLine *)malloc(sizeof(TLine) * input_states);
 	}
 	int Tlinenum = state_num * input_states;
 	for (int i = 0; i < Tlinenum; i++)
@@ -247,11 +247,11 @@ void trellis()
 		// 每条line就是state table里的一行
 		TLineTable[i].input = state_table[i * 5];
 		TLineTable[i].output = state_table[i * 5 + 3];
-		TLineTable[i].begin = &TNodeTable[state_table[i * 5 + 1]];
-		TLineTable[i].end = &TNodeTable[state_table[i * 5 + 2]];
+		TLineTable[i].BeginNode = &TNodeTable[state_table[i * 5 + 1]];
+		TLineTable[i].EndNode = &TNodeTable[state_table[i * 5 + 2]];
 
-		TNodeTable[state_table[i * 5 + 1]].to[TLineTable[i].input] = TLineTable[i];
-		TNodeTable[state_table[i * 5 + 2]].from[TLineTable[i].output] = TLineTable[i];
+		TNodeTable[state_table[i * 5 + 1]].RightLines[TLineTable[i].input] = TLineTable[i];
+		TNodeTable[state_table[i * 5 + 2]].LeftLines[TLineTable[i].input] = TLineTable[i];
 	}
 
 	// print trellis
@@ -260,7 +260,7 @@ void trellis()
 		printf("[DEBUG]: trellis\n");
 		for (int i = 0; i < Tlinenum; i++)
 		{
-			printf("Line %d: in:%d out:%d from:%d to:%d\n", i, TLineTable[i].input, TLineTable[i].output, TLineTable[i].begin->data, TLineTable[i].end->data);
+			printf("Line %d: in:%d out:%d LeftLines:%d RightLines:%d\n", i, TLineTable[i].input, TLineTable[i].output, TLineTable[i].BeginNode->data, TLineTable[i].EndNode->data);
 		}
 		printf("\n");
 	}
@@ -372,25 +372,44 @@ void decoder_victerbi_hard()
 	VNODE *VNodeTable = (VNODE *)malloc(sizeof(VNODE) * state_num * message_length);
 
 	// 初始化
-	VNodeTable[0].active = 0;
-	VNodeTable[0].min_cost = 0;
 	for (int i = 0; i < state_num; i++)
 	{
 		for (int j = 0; j < message_length; j++)
 		{
 			int ij = i * message_length + j;
-
-			// 判断是否有这条边
-			int *from_ids = (int *)malloc(sizeof(int) * input_states);
-			// for (int state = 0; state < input_states; i++)
-			// {
-			// 	from_ids[state] = TNodeTable[i].from->begin->data;
-			// }
-
-			// if (TNode)
-			VNodeTable[ij].state = j;
+			VNodeTable[ij].state = i;
+			// 前几行和后几行单独处理
+			if (i < reg_num || i >= message_length - reg_num)
+			{
+				VNodeTable[ij].active = 0;
+			}else{
+				VNodeTable[ij].active = 1;
+			}
 			VNodeTable[ij].min_cost = INF;
 			VNodeTable[ij].min_cost_path = INF;
+		}
+	}
+	VNodeTable[0].active = 1; // 第一列只有 0 处是有效节点
+	VNodeTable[message_length].active = 1; // 最后一列只有 0 处是有效节点
+	// 对图进行裁剪，删掉log2(state_num) = reg_num列的不应该出现的节点
+	for (int col = 1; col < reg_num; col++)
+	{
+		for (int row = 0; row < state_num; row++)
+		{
+			int is_parent_active = 0;
+			// 检查是否有连接到自己的节点
+			for (int nout = 0; nout < Parameter->nout; nout++)
+			{
+				// int preid = *(TNodeTable[row].LeftLines+nout)->BeginNode->data;
+				int preid = TNodeTable[row].LeftLines[nout].BeginNode->data;
+				if (VNodeTable[(row - 1) * message_length + col].active)
+				{
+					is_parent_active = 1;
+				}
+			}
+			if (is_parent_active) {
+				VNodeTable[row*message_length + col].active = 1;
+			}
 		}
 	}
 
@@ -401,7 +420,11 @@ void decoder_victerbi_hard()
 		{
 			for (int j = 0; j < message_length; j++)
 			{
-				printf("(%d %f %f) ", VNodeTable[i * message_length + j].state, VNodeTable[i * message_length + j].min_cost, VNodeTable[i * message_length + j].min_cost_path);
+				printf("(%d %d %.2f %.2f) ",
+					   VNodeTable[i * message_length + j].state,
+					   VNodeTable[i * message_length + j].active,
+					   VNodeTable[i * message_length + j].min_cost,
+					   VNodeTable[i * message_length + j].min_cost_path);
 			}
 			printf("\n");
 		}
@@ -411,5 +434,10 @@ void decoder_victerbi_hard()
 
 void decoder()
 {
-	decoder_victerbi_hard();
+	switch (decode_method)
+	{
+	case VICTERBI_HARD:
+		decoder_victerbi_hard();
+		break;
+	}
 }

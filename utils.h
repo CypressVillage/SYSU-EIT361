@@ -23,8 +23,8 @@ typedef struct
 typedef struct TrellisNode
 {
     int data;
-    struct TrellisLine *from;
-    struct TrellisLine *to;
+    struct TrellisLine *LeftLines;
+    struct TrellisLine *RightLines;
 } TNode;
 
 typedef struct TrellisLine
@@ -32,8 +32,8 @@ typedef struct TrellisLine
     // int id;
     int input;
     int output;
-    struct TrellisNode *begin;
-    struct TrellisNode *end;
+    struct TrellisNode *BeginNode;
+    struct TrellisNode *EndNode;
 } TLine;
 
 typedef struct VICTERBI_MAT_NODE
