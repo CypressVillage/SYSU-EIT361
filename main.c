@@ -42,6 +42,8 @@ int state_num;//the number of the state of encoder structure
 int input_len; // 每次输入的比特数，在758中为1
 int input_states;
 int* state_table;//state table, the size should be defined yourself
+TLine* TLineTable;
+TNode* TNodeTable;
 
 int message[message_length], codeword[codeword_length];//message and codeword，原信息和编码之后的信息
 int codeword2[codeword_length];
@@ -82,7 +84,7 @@ void main()
 	// printf("\nPlease input the number of message: ");
 	// scanf("%d", &seq_num);
 	start = 10, finish = 20; // 起始和结束的SNR，浮点数，单位为dB
-	int SNR_step = 1; // SNR步长
+	int SNR_step = 11; // SNR步长
 	seq_num = 1; // 仿真次数
 
 	for (SNR = start; SNR <= finish; SNR+=SNR_step)
@@ -197,15 +199,13 @@ void statetable()
 
 			int *outArray = malloc(sizeof(int) * reg_num);
 			for (int n = 0; n < Parameter->nout; n++) {
-				// codeword[Parameter->nout * i + j] = 0;
 				outArray[n] = 0;
 				outArray[n] ^= inputArray[0] * Parameter->trans_mat[n*reg_num+0];
 				for (int k = 0; k < reg_num; k++) {
  					outArray[n] ^= stateArray[k] * Parameter->trans_mat[n*(reg_num+1)+k+1];
 				}
-			// printf("%d ", codeword[Parameter->nout * i + j]);
 			}
-			
+
 			state_table[5*line_num+3] = array2int(outArray, Parameter->nout); // Out
 
 			state_table[5*line_num+4] = line_num+1; // Line Number
@@ -219,8 +219,7 @@ void statetable()
 
 	// print state_table
 	if (DEBUG_MODE) {
-		printf("[DEBUG]:\n");
-		printf("state_table:\n");
+		printf("[DEBUG]: state_table\n");
 		for (int i=0; i<state_num*input_states; i++) {
 			for (int j=0; j<5; j++) {
 				printf("%d ", state_table[i*5+j]);
@@ -232,19 +231,37 @@ void statetable()
 }
 
 void trellis() {
-	TLine* TLineTable = (TLine*)malloc(sizeof(TLine) * state_num * input_states);
-	TNode* TNodeTable = (TNode*)malloc(sizeof(TNode) * state_num);
+	TLineTable = (TLine*)malloc(sizeof(TLine) * state_num * input_states);
+	TNodeTable = (TNode*)malloc(sizeof(TNode) * state_num);
 
 	for (int i = 0; i < state_num; i++) {
 		TNodeTable[i].data = i;
-		TNodeTable[i].from = NULL;
-		TNodeTable[i].to = NULL;
+		TNodeTable[i].from = (TLine*)malloc(sizeof(TLine) * input_states);
+		TNodeTable[i].to =(TLine*)malloc(sizeof(TLine) * input_states);
 	}
-	for (int i = 0; i < state_num*input_len; i++)
+	int Tlinenum = state_num * input_states;
+	for (int i = 0; i < Tlinenum; i++)
 	{
-		
+		// 每条line就是state table里的一行
+		TLineTable[i].input = state_table[i*5];
+		TLineTable[i].output = state_table[i*5+3];
+		TLineTable[i].begin = &TNodeTable[state_table[i*5+1]];
+		TLineTable[i].end = &TNodeTable[state_table[i*5+2]];
+
+		TNodeTable[state_table[i*5+1]].to[TLineTable[i].input] = TLineTable[i];
+		TNodeTable[state_table[i*5+2]].from[TLineTable[i].output] = TLineTable[i];
 	}
-	
+
+	// print trellis
+	if (DEBUG_MODE)
+	{
+		printf("[DEBUG]: trellis\n");
+		for (int i = 0; i < Tlinenum; i++)
+		{
+			printf("Line %d: in:%d out:%d from:%d to:%d\n", i, TLineTable[i].input, TLineTable[i].output, TLineTable[i].begin->data, TLineTable[i].end->data);
+		}
+		printf("\n");
+	}
 }
 
 void encoder()
@@ -343,18 +360,43 @@ void demodulation()
 	}
 }
 
+void decoder_victerbi_hard() {
+	VNODE* VNodeTable = (VNODE*)malloc(sizeof(VNODE) * state_num * message_length);
+
+	// 初始化
+	VNodeTable[0].active = 0;
+	VNodeTable[0].min_cost = 0;
+	for (int i = 0; i < state_num; i++) {
+		for (int j = 0; j < message_length; j++) {
+			int ij = i*message_length+j;
+
+			// 判断是否有这条边
+			int* from_ids = (int*)malloc(sizeof(int) * input_states);
+			// for (int state = 0; state < input_states; i++)
+			// {
+			// 	from_ids[state] = TNodeTable[i].from->begin->data;
+			// }
+			
+			// if (TNode)
+			VNodeTable[ij].state = j;
+			VNodeTable[ij].min_cost = INF;
+			VNodeTable[ij].min_cost_path = INF;
+		}
+	}
+
+	if (DEBUG_MODE) {
+		printf("[DEBUG]: VNodeTable:(state,cost,path)\n");
+		for (int i=0; i<state_num; i++) {
+			for (int j=0; j<message_length; j++) {
+				printf("(%d %f %f) ", VNodeTable[i*message_length+j].state, VNodeTable[i*message_length+j].min_cost, VNodeTable[i*message_length+j].min_cost_path);
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+}
+
 void decoder()
 {
-	// input: codeword
-	// output: de_message
-
-	// Viterbi decode
-	// 硬判决维特比译码
-	int TLineNum = input_len * state_num;
-	TLine *TLineTable = (TLine *)malloc(sizeof(TLine) * TLineNum);
-	for (int i = 0; i < TLineNum; i++) {
-		TLineTable[i].input = state_table[i*5];
-	}
-	
-	
+	decoder_victerbi_hard();
 } 

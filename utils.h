@@ -25,11 +25,19 @@ typedef struct TrellisNode{
 } TNode;
 
 typedef struct TrellisLine{
+    // int id;
     int input;
     int output;
     struct TrellisNode* begin;
     struct TrellisNode* end;
 } TLine;
+
+typedef struct VICTERBI_MAT_NODE{
+    float min_cost;
+    float min_cost_path;
+    int state;
+    int active;
+} VNODE;
 
 int* int2array(int num, int len, int mode);
 int array2int(int* arr, int len);
