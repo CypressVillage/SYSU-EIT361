@@ -171,7 +171,7 @@ void statetable()
 	// 仿照课件，state_table有state*2行5列
 	// 列：IN, Current State, Next State, Out
 
-	state_table = malloc(sizeof(int) * state_num * input_states * 5);
+	state_table = calloc(state_num * input_states * 5, sizeof(int));
 	for (int state = 0; state < state_num; state++)
 	{
 		for (int input = 0; input < input_states; input++)
@@ -183,7 +183,7 @@ void statetable()
 			state_table[5 * line_num] = input;	   // IN
 			state_table[5 * line_num + 1] = state; // Current State
 
-			int *nextStateArray = (int *)malloc(sizeof(int) * reg_num);
+			int *nextStateArray = (int *)calloc(reg_num, sizeof(int));
 			nextStateArray[0] = inputArray[0];
 			for (int i = 0; i < reg_num - 1; i++)
 			{
@@ -192,7 +192,7 @@ void statetable()
 
 			state_table[5 * line_num + 2] = array2int(nextStateArray, reg_num); // Next State
 
-			int *outArray = malloc(sizeof(int) * reg_num);
+			int *outArray = (int *)calloc(reg_num, sizeof(int));
 			for (int n = 0; n < Parameter->nout; n++)
 			{
 				outArray[n] = 0;
@@ -232,14 +232,14 @@ void statetable()
 
 void trellis()
 {
-	TLineTable = (TLine *)malloc(sizeof(TLine) * state_num * input_states);
-	TNodeTable = (TNode *)malloc(sizeof(TNode) * state_num);
+	TLineTable = (TLine *)calloc(state_num * input_states, sizeof(TLine));
+	TNodeTable = (TNode *)calloc(state_num, sizeof(TNode));
 
 	for (int i = 0; i < state_num; i++)
 	{
 		TNodeTable[i].data = i;
-		TNodeTable[i].LeftLines = (TLine *)malloc(sizeof(TLine) * input_states);
-		TNodeTable[i].RightLines = (TLine *)malloc(sizeof(TLine) * input_states);
+		TNodeTable[i].LeftLines = (TLine *)calloc(input_states, sizeof(TLine));
+		TNodeTable[i].RightLines = (TLine *)calloc(input_states, sizeof(TLine));
 	}
 	int Tlinenum = state_num * input_states;
 	for (int i = 0; i < Tlinenum; i++)
@@ -251,7 +251,8 @@ void trellis()
 		TLineTable[i].EndNode = &TNodeTable[state_table[i * 5 + 2]];
 
 		TNodeTable[state_table[i * 5 + 1]].RightLines[TLineTable[i].input] = TLineTable[i];
-		TNodeTable[state_table[i * 5 + 2]].LeftLines[TLineTable[i].input] = TLineTable[i];
+		// BUG: 相同input会指向同一个状态导致不能用input来区分两条边
+		TNodeTable[state_table[i * 5 + 2]].LeftLines[TLineTable[i].BeginNode->data%2] = TLineTable[i];
 	}
 
 	// print trellis
@@ -260,9 +261,13 @@ void trellis()
 		printf("[DEBUG]: trellis\n");
 		for (int i = 0; i < Tlinenum; i++)
 		{
-			printf("Line %d: in:%d out:%d LeftLines:%d RightLines:%d\n", i, TLineTable[i].input, TLineTable[i].output, TLineTable[i].BeginNode->data, TLineTable[i].EndNode->data);
+			printf("Line %d: in:%d out:%d BeginNode:%d EndNode:%d\n", i, TLineTable[i].input, TLineTable[i].output, TLineTable[i].BeginNode->data, TLineTable[i].EndNode->data);
 		}
 		printf("\n");
+		// for (int i = 0; i < TNodeTable; i++)
+		// {
+		// 	printf("Node %d: left:%d right%d", i, TNodeTable[i].LeftLines[0].input, TNodeTable[i].LeftLines[0].input);
+		// }
 	}
 }
 
@@ -287,7 +292,7 @@ void encoder()
 
 	// printf("\n");
 	// 寄存器初始化及清零
-	int *curStates = (int *)malloc(sizeof(int) * (reg_num + 1));
+	int *curStates = (int *)calloc(reg_num + 1, sizeof(int));
 	for (int i = 0; i < reg_num + 1; i++)
 	{
 		curStates[i] = 0;
@@ -369,7 +374,7 @@ void demodulation()
 
 void decoder_victerbi_hard()
 {
-	VNODE *VNodeTable = (VNODE *)malloc(sizeof(VNODE) * state_num * message_length);
+	VNODE *VNodeTable = (VNODE *)calloc(state_num * message_length, sizeof(VNODE));
 
 	// 初始化
 	for (int i = 0; i < state_num; i++)
@@ -378,19 +383,21 @@ void decoder_victerbi_hard()
 		{
 			int ij = i * message_length + j;
 			VNodeTable[ij].state = i;
-			// 前几行和后几行单独处理
-			if (i < reg_num || i >= message_length - reg_num)
+			// 前几列和后几列单独处理
+			if (j < reg_num || j >= message_length - reg_num)
 			{
 				VNodeTable[ij].active = 0;
-			}else{
+			}
+			else
+			{
 				VNodeTable[ij].active = 1;
 			}
 			VNodeTable[ij].min_cost = INF;
 			VNodeTable[ij].min_cost_path = INF;
 		}
 	}
-	VNodeTable[0].active = 1; // 第一列只有 0 处是有效节点
-	VNodeTable[message_length].active = 1; // 最后一列只有 0 处是有效节点
+	VNodeTable[0].active = 1;				   // 第一列只有 0 处是有效节点
+	VNodeTable[message_length - 1].active = 1; // 最后一列只有 0 处是有效节点
 	// 对图进行裁剪，删掉log2(state_num) = reg_num列的不应该出现的节点
 	for (int col = 1; col < reg_num; col++)
 	{
@@ -400,22 +407,25 @@ void decoder_victerbi_hard()
 			// 检查是否有连接到自己的节点
 			for (int nout = 0; nout < Parameter->nout; nout++)
 			{
-				// int preid = *(TNodeTable[row].LeftLines+nout)->BeginNode->data;
 				int preid = TNodeTable[row].LeftLines[nout].BeginNode->data;
-				if (VNodeTable[(row - 1) * message_length + col].active)
-				{
-					is_parent_active = 1;
-				}
+				// int a = TNodeTable[row].LeftLines[1].input;
+				// TNode *a = TNodeTable[row].LeftLines[0].BeginNode;
+				// printf("%d", preid);
+				// if (VNodeTable[(row - 1) * message_length + col].active)
+				// {
+				// 	is_parent_active = 1;
+				// }
 			}
-			if (is_parent_active) {
-				VNodeTable[row*message_length + col].active = 1;
+			if (is_parent_active)
+			{
+				VNodeTable[row * message_length + col].active = 1;
 			}
 		}
 	}
 
 	if (DEBUG_MODE)
 	{
-		printf("[DEBUG]: VNodeTable:(state,cost,path)\n");
+		printf("[DEBUG]: VNodeTable:(state,active,cost,path)\n");
 		for (int i = 0; i < state_num; i++)
 		{
 			for (int j = 0; j < message_length; j++)
