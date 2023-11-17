@@ -54,7 +54,7 @@ double rx_symbol[codeword_length][2];//the received symbols
 void main()
 {
 	code_rate = (float)message_length / (float)codeword_length;
-	Parameter = get_essential_params(15, 13, 8);
+	Parameter = get_essential_params(7, 5, 8);
 	reg_num = Parameter->reg_num;//the number of the register of encoder structure
 	state_num = pow(2, reg_num);//the number of the state of encoder structure
 	input_len = 1; // 每次输入的比特数，在758中为1
@@ -180,7 +180,7 @@ void statetable()
 	for (int state=0; state<state_num; state++) {
 		for (int input=0; input<input_states; input++) {
 			int *inputArray = int2array(input, input_len, BIN);
-			int *stateArray = int2array(state, state_num, BIN);
+			int *stateArray = int2array(state, reg_num, BIN);
 
 			int line_num = state*input_states+input;
 			state_table[5*line_num] = input; // IN
@@ -193,12 +193,21 @@ void statetable()
 				nextStateArray[i+1] = stateArray[i];
 			}
 			
-			// nextStateArray[1] = stateArray[0];
 			state_table[5*line_num+2] = array2int(nextStateArray, reg_num); // Next State
 
 			int *outArray = malloc(sizeof(int) * reg_num);
-			outArray[0] = inputArray[0] ^ stateArray[0] ^ stateArray[1];
-			outArray[1] = inputArray[0] ^ stateArray[1];
+			for (int n = 0; n < Parameter->nout; n++) {
+				// codeword[Parameter->nout * i + j] = 0;
+				outArray[n] = 0;
+				outArray[n] ^= inputArray[0] * Parameter->trans_mat[n*reg_num+0];
+				for (int k = 0; k < reg_num; k++) {
+ 					outArray[n] ^= stateArray[k] * Parameter->trans_mat[n*(reg_num+1)+k+1];
+				}
+			// printf("%d ", codeword[Parameter->nout * i + j]);
+			}
+			
+			// outArray[0] = inputArray[0] ^ stateArray[0] ^ stateArray[1];
+			// outArray[1] = inputArray[0] ^ stateArray[1];
 			state_table[5*line_num+3] = array2int(outArray, reg_num); // Out
 
 			state_table[5*line_num+4] = line_num+1; // Line Number
