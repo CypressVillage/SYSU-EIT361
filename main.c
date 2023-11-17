@@ -404,21 +404,33 @@ void decoder_victerbi_hard()
 		for (int row = 0; row < state_num; row++)
 		{
 			int is_parent_active = 0;
-			// 检查是否有连接到自己的节点
+			// 前向检查是否有连接到自己的节点
 			for (int nout = 0; nout < Parameter->nout; nout++)
 			{
 				int preid = TNodeTable[row].LeftLines[nout].BeginNode->data;
-				// int a = TNodeTable[row].LeftLines[1].input;
-				// TNode *a = TNodeTable[row].LeftLines[0].BeginNode;
-				// printf("%d", preid);
-				// if (VNodeTable[(row - 1) * message_length + col].active)
-				// {
-				// 	is_parent_active = 1;
-				// }
+				if (VNodeTable[preid * message_length + col-1].active)
+				{
+					is_parent_active = 1;
+				}
 			}
 			if (is_parent_active)
 			{
 				VNodeTable[row * message_length + col].active = 1;
+			}
+			// 后向检查是否有连接到自己的节点
+			int colbehind = message_length - col - 1;
+			int is_child_active = 0;
+			for (int nout = 0; nout < Parameter->nout; nout++)
+			{
+				int nextid = TNodeTable[row].RightLines[nout].EndNode->data;
+				if (VNodeTable[nextid * message_length + colbehind + 1].active)
+				{
+					is_child_active = 1;
+				}
+			}
+			if (is_child_active)
+			{
+				VNodeTable[row * message_length + colbehind].active = 1;
 			}
 		}
 	}
