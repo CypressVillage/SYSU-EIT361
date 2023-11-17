@@ -5,8 +5,11 @@
 #define DEC 1
 #define DEBUG_MODE 1
 
-int* int2array(int num, int len, int mode);
-int array2int(int* arr, int len);
+typedef enum {
+    VICTERBI_HARD,
+    VICTERBI_SOFT,
+    BCJR
+} DECODE_METHOD;
 
 typedef struct {
     int reg_num;
@@ -14,8 +17,6 @@ typedef struct {
     int nin;
     int nout;
 } PARAMETER;
-
-PARAMETER* get_essential_params(int A, int B, int C);
 
 typedef struct TrellisNode{
     int data;
@@ -30,5 +31,9 @@ typedef struct TrellisLine{
     struct TrellisNode* end;
 } TLine;
 
+int* int2array(int num, int len, int mode);
+int array2int(int* arr, int len);
+
+PARAMETER* get_essential_params(int A, int B, int C);
 
 #endif

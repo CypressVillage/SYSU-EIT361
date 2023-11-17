@@ -7,8 +7,7 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 ***************************************************/
 
 
-/**
-修改说明：
+/** 修改说明：
 1. 原代码中 state_num 更改为 reg_num，为寄存器数量；state_num 为寄存器组的状态数量，state_num = 2^reg_num
 */
 
@@ -20,6 +19,7 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #include "utils.h"
 
 void statetable();
+void trellis();
 void encoder();
 void modulation();
 void demodulation();
@@ -36,6 +36,7 @@ float code_rate; // 码率
 double N0, sgm; // 信道噪声
 
 PARAMETER* Parameter;
+DECODE_METHOD decode_method = VICTERBI_HARD;
 int reg_num;//the number of the register of encoder structure
 int state_num;//the number of the state of encoder structure
 int input_len; // 每次输入的比特数，在758中为1
@@ -53,7 +54,7 @@ double rx_symbol[codeword_length][2];//the received symbols
 void main()
 {
 	code_rate = (float)message_length / (float)codeword_length;
-	Parameter = get_essential_params(7, 5, 8);
+	Parameter = get_essential_params(15, 13, 8);
 	reg_num = Parameter->reg_num;//the number of the register of encoder structure
 	state_num = pow(2, reg_num);//the number of the state of encoder structure
 	input_len = 1; // 每次输入的比特数，在758中为1
@@ -68,6 +69,7 @@ void main()
 
 	//generate state table
 	statetable();
+	trellis();
 
 	//random seed
 	srand((int)time(0));
@@ -177,22 +179,27 @@ void statetable()
 	state_table = malloc(sizeof(int) * state_num * input_states * 5);
 	for (int state=0; state<state_num; state++) {
 		for (int input=0; input<input_states; input++) {
-			int *inputArray = int2array(input, 1, BIN);
-			int *stateArray = int2array(state, 2, BIN);
+			int *inputArray = int2array(input, input_len, BIN);
+			int *stateArray = int2array(state, state_num, BIN);
 
 			int line_num = state*input_states+input;
 			state_table[5*line_num] = input; // IN
 			state_table[5*line_num+1] = state; // Current State
 
-			int *nextStateArray = malloc(sizeof(int) * 2);
+			int *nextStateArray = (int*)malloc(sizeof(int) * reg_num);
 			nextStateArray[0] = inputArray[0];
-			nextStateArray[1] = stateArray[0];
-			state_table[5*line_num+2] = array2int(nextStateArray, 2); // Next State
+			for (int i = 0; i < reg_num-1; i++)
+			{
+				nextStateArray[i+1] = stateArray[i];
+			}
+			
+			// nextStateArray[1] = stateArray[0];
+			state_table[5*line_num+2] = array2int(nextStateArray, reg_num); // Next State
 
-			int *outArray = malloc(sizeof(int) * 2);
+			int *outArray = malloc(sizeof(int) * reg_num);
 			outArray[0] = inputArray[0] ^ stateArray[0] ^ stateArray[1];
 			outArray[1] = inputArray[0] ^ stateArray[1];
-			state_table[5*line_num+3] = array2int(outArray, 2); // Out
+			state_table[5*line_num+3] = array2int(outArray, reg_num); // Out
 
 			state_table[5*line_num+4] = line_num+1; // Line Number
 
@@ -215,6 +222,22 @@ void statetable()
 		}
 		printf("\n");
 	}
+}
+
+void trellis() {
+	TLine* TLineTable = (TLine*)malloc(sizeof(TLine) * state_num * input_states);
+	TNode* TNodeTable = (TNode*)malloc(sizeof(TNode) * state_num);
+
+	for (int i = 0; i < state_num; i++) {
+		TNodeTable[i].data = i;
+		TNodeTable[i].from = NULL;
+		TNodeTable[i].to = NULL;
+	}
+	for (int i = 0; i < state_num*input_len; i++)
+	{
+		
+	}
+	
 }
 
 void encoder()
@@ -313,10 +336,8 @@ void demodulation()
 	}
 }
 
-int get_;
-
 void decoder()
-{ 
+{
 	// input: codeword
 	// output: de_message
 
@@ -327,5 +348,6 @@ void decoder()
 	for (int i = 0; i < TLineNum; i++) {
 		TLineTable[i].input = state_table[i*5];
 	}
+	
 	
 } 

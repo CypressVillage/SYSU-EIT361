@@ -89,12 +89,11 @@ PARAMETER* get_essential_params(int a, int b, int N){
 }
 
 // int main(){
-//     PARAMETER *p = get_essential_params(23, 35, 8);
-//     printf("%d\n", p->reg_num);
-//     for (int i = 0; i < 14; i++)
-//     {
-//         printf("%d ", p->trans_mat[i]);
-//     }
+//     int *a = (int*)malloc(sizeof(int)*3);
+//     a[0] = 1;
+//     a[1] = 0;
+//     a[2] = 0;
+//     printf("%d\n", array2int(a, 3));
     
 //     return 0;
 // }
