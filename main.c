@@ -82,8 +82,8 @@ int main()
 	// scanf("%f", &finish);
 	// printf("\nPlease input the number of message: ");
 	// scanf("%d", &seq_num);
-	start = -50, finish = 20; // 起始和结束的SNR，浮点数，单位为dB
-	float SNR_step = 5;		 // SNR步长
+	start = -20, finish = 20; // 起始和结束的SNR，浮点数，单位为dB
+	float SNR_step = 1;		 // SNR步长
 	seq_num = 1;			 // 仿真次数
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
@@ -375,6 +375,17 @@ void demodulation()
 		else
 			re_codeword[i] = 1;
 	}
+
+	// print re_codeword
+	if (DEBUG_MODE)
+	{
+		printf("[DEBUG]: re_codeword\n");
+		for (int i = 0; i < codeword_length; i++)
+		{
+			printf("%d ", re_codeword[i]);
+		}
+		printf("\n\n");
+	}
 }
 
 void decoder_viterbi_hard()
@@ -485,7 +496,7 @@ void decoder_viterbi_hard()
 						int *codeword_section = (int*)calloc(Parameter->nout, sizeof(int));
 						for (int n = 0; n < Parameter->nout; n++)
 						{
-							codeword_section[n] = codeword[(col - 1)*Parameter->nout + n];
+							codeword_section[n] = re_codeword[(col - 1)*Parameter->nout + n];
 						}
 						int codeword_output = array2int(codeword_section, Parameter->nout);
 						// 计算当前节点的代价
