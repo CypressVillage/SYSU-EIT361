@@ -26,7 +26,7 @@ void channel();
 void decoder();
 
 #define message_length 10   // the length of message
-#define codeword_length 20 // the length of codeword
+#define codeword_length message_length*2 // the length of codeword
 float code_rate;		   // 码率
 
 // channel coefficient
@@ -53,7 +53,7 @@ int de_message[message_length];	  // the decoding message
 double tx_symbol[codeword_length][2]; // the transmitted symbols
 double rx_symbol[codeword_length][2]; // the received symbols
 
-void main()
+int main()
 {
 	code_rate = (float)message_length / (float)codeword_length;
 	Parameter = get_essential_params(7, 5, 8);
@@ -82,9 +82,9 @@ void main()
 	// scanf("%f", &finish);
 	// printf("\nPlease input the number of message: ");
 	// scanf("%d", &seq_num);
-	start = 10, finish = 20; // 起始和结束的SNR，浮点数，单位为dB
-	int SNR_step = 1;		 // SNR步长
-	seq_num = 3;			 // 仿真次数
+	start = -50, finish = 20; // 起始和结束的SNR，浮点数，单位为dB
+	float SNR_step = 5;		 // SNR步长
+	seq_num = 1;			 // 仿真次数
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
@@ -118,10 +118,12 @@ void main()
 			modulation();
 
 			// AWGN channel
-			//  channel(); // TODO: 记得改回来
+			channel(); // TODO: 记得改回来
 
 			// BPSK demodulation, it's needed in hard-decision Viterbi decoder
-			// demodulation();
+			if (decode_method == VITERBI_HARD){
+				demodulation();
+			}
 
 			// convolutional decoder
 			decoder();
@@ -139,7 +141,7 @@ void main()
 			BER = (double)bit_error / (double)(message_length * seq);
 
 			// print the intermediate result
-			printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\n", progress, SNR, bit_error, BER);
+			printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1ld, BER=%E\n", progress, SNR, bit_error, BER);
 			if (DEBUG_MODE)
 			{
 				printf("[DEBUG]:\n");
@@ -164,6 +166,7 @@ void main()
 		// printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\n", progress, SNR, bit_error, BER);
 	}
 	// system("pause");
+	return 0;
 }
 
 void statetable()
@@ -464,14 +467,13 @@ void decoder_viterbi_hard()
 	{
 		// 计算每条边的差
 		int col_mincost = INF; // 这列节点的最小代价
-		int decode_output; // 这列节点的输出
+		int decode_output = INF; // 这列节点的输出
 		for (int row = 0; row < state_num; row++)
 		{
 			int ij = row * Col + col;
 			if (VNodeTable[ij].active)
 			{
 				// 计算到这个节点的所有边中的最短路径
-				int min = INF;
 				for (int nout = 0; nout < Parameter->nout; nout++)
 				{
 					TLine *preLine = &TNodeTable[row].LeftLines[nout];
