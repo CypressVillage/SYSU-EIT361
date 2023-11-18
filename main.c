@@ -25,8 +25,8 @@ void demodulation();
 void channel();
 void decoder();
 
-#define message_length 7   // the length of message
-#define codeword_length 14 // the length of codeword
+#define message_length 10   // the length of message
+#define codeword_length 20 // the length of codeword
 float code_rate;		   // 码率
 
 // channel coefficient
@@ -83,8 +83,8 @@ void main()
 	// printf("\nPlease input the number of message: ");
 	// scanf("%d", &seq_num);
 	start = 10, finish = 20; // 起始和结束的SNR，浮点数，单位为dB
-	int SNR_step = 11;		 // SNR步长
-	seq_num = 1;			 // 仿真次数
+	int SNR_step = 1;		 // SNR步长
+	seq_num = 3;			 // 仿真次数
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
@@ -376,35 +376,36 @@ void demodulation()
 
 void decoder_viterbi_hard()
 {
-	codeword[0] = 0;
-	codeword[1] = 0;
-	codeword[2] = 1;
-	codeword[3] = 1;
-	codeword[4] = 1;
-	codeword[5] = 1;
-	codeword[6] = 0;
-	codeword[7] = 1;
-	codeword[8] = 0;
-	codeword[9] = 0;
-	codeword[10] = 1;
-	codeword[11] = 0;
-	codeword[12] = 1;
-	codeword[13] = 1;
+	// codeword[0] = 0;
+	// codeword[1] = 0;
+	// codeword[2] = 1;
+	// codeword[3] = 1;
+	// codeword[4] = 1;
+	// codeword[5] = 1;
+	// codeword[6] = 0;
+	// codeword[7] = 1;
+	// codeword[8] = 0;
+	// codeword[9] = 0;
+	// codeword[10] = 1;
+	// codeword[11] = 0;
+	// codeword[12] = 1;
+	// codeword[13] = 1;
 	// codeword[14] = 0;
 	// codeword[15] = 0;
 	// codeword[16] = 1;
 	// codeword[17] = 0;
-	VNODE *VNodeTable = (VNODE *)calloc(state_num * message_length, sizeof(VNODE));
+	int Col = message_length+1;
+	VNODE *VNodeTable = (VNODE *)calloc(state_num * Col, sizeof(VNODE));
 
 	// 初始化
 	for (int i = 0; i < state_num; i++)
 	{
-		for (int j = 0; j < message_length; j++)
+		for (int j = 0; j < Col; j++)
 		{
-			int ij = i * message_length + j;
+			int ij = i * Col + j;
 			VNodeTable[ij].state = i;
 			// 前几列和后几列单独处理
-			if (j < reg_num || j >= message_length - reg_num)
+			if (j < reg_num || j >= Col - reg_num)
 			{
 				VNodeTable[ij].active = 0;
 			}
@@ -417,7 +418,7 @@ void decoder_viterbi_hard()
 		}
 	}
 	VNodeTable[0].active = 1;				   // 第一列只有 0 处是有效节点
-	VNodeTable[message_length - 1].active = 1; // 最后一列只有 0 处是有效节点
+	VNodeTable[Col - 1].active = 1; // 最后一列只有 0 处是有效节点
 	// 对图进行裁剪，删掉log2(state_num) = reg_num列的不应该出现的节点
 	for (int col = 1; col < reg_num; col++)
 	{
@@ -428,29 +429,29 @@ void decoder_viterbi_hard()
 			for (int nout = 0; nout < Parameter->nout; nout++)
 			{
 				int preid = TNodeTable[row].LeftLines[nout].BeginNode->data;
-				if (VNodeTable[preid * message_length + col - 1].active)
+				if (VNodeTable[preid * Col + col - 1].active)
 				{
 					is_parent_active = 1;
 				}
 			}
 			if (is_parent_active)
 			{
-				VNodeTable[row * message_length + col].active = 1;
+				VNodeTable[row * Col + col].active = 1;
 			}
 			// 后向检查是否有连接到自己的节点
-			int colbehind = message_length - col - 1;
+			int colbehind = Col - col - 1;
 			int is_child_active = 0;
 			for (int nout = 0; nout < Parameter->nout; nout++)
 			{
 				int nextid = TNodeTable[row].RightLines[nout].EndNode->data;
-				if (VNodeTable[nextid * message_length + colbehind + 1].active)
+				if (VNodeTable[nextid * Col + colbehind + 1].active)
 				{
 					is_child_active = 1;
 				}
 			}
 			if (is_child_active)
 			{
-				VNodeTable[row * message_length + colbehind].active = 1;
+				VNodeTable[row * Col + colbehind].active = 1;
 			}
 		}
 	}
@@ -459,14 +460,14 @@ void decoder_viterbi_hard()
 	VNodeTable[0].min_cost = 0;
 	VNodeTable[0].min_cost_path = 0;
 	// 计算每一列最短路径
-	for (int col = 1; col < message_length; col++)
+	for (int col = 1; col < Col; col++)
 	{
 		// 计算每条边的差
 		int col_mincost = INF; // 这列节点的最小代价
 		int decode_output; // 这列节点的输出
 		for (int row = 0; row < state_num; row++)
 		{
-			int ij = row * message_length + col;
+			int ij = row * Col + col;
 			if (VNodeTable[ij].active)
 			{
 				// 计算到这个节点的所有边中的最短路径
@@ -475,7 +476,7 @@ void decoder_viterbi_hard()
 				{
 					TLine *preLine = &TNodeTable[row].LeftLines[nout];
 					int preid = preLine->BeginNode->data;
-					int preij = preid * message_length + col - 1;
+					int preij = preid * Col + col - 1;
 					if (VNodeTable[preij].active)
 					{
 						// 从codeword中提取输出
@@ -501,7 +502,10 @@ void decoder_viterbi_hard()
 				}
 			}
 		}
-		printf("mincost:%d output:%d\n", col_mincost, decode_output);
+		if (DEBUG_MODE) {
+			printf("mincost:%d output:%d\n", col_mincost, decode_output);
+		}
+		de_message[col-1] = decode_output;
 	}
 
 	if (DEBUG_MODE)
@@ -509,13 +513,13 @@ void decoder_viterbi_hard()
 		printf("[DEBUG]: VNodeTable:(state,active,cost,path)\n");
 		for (int i = 0; i < state_num; i++)
 		{
-			for (int j = 0; j < message_length; j++)
+			for (int j = 0; j < Col; j++)
 			{
 				printf("(%.2f %.2f) ",
 					//    VNodeTable[i * message_length + j].state,
 					//    VNodeTable[i * message_length + j].active,
-					   VNodeTable[i * message_length + j].min_cost,
-					   VNodeTable[i * message_length + j].min_cost_path+1);
+					   VNodeTable[i * Col + j].min_cost,
+					   VNodeTable[i * Col + j].min_cost_path+1);
 			}
 			printf("\n");
 		}
