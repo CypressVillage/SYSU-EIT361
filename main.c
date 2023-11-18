@@ -25,18 +25,18 @@ void demodulation();
 void channel();
 void decoder();
 
-#define message_length 10   // the length of message
-#define codeword_length message_length*2 // the length of codeword
-float code_rate;		   // 码率
+#define message_length 10				   // the length of message
+#define codeword_length message_length * 2 // the length of codeword
+float code_rate;						   // 码率
 
 // channel coefficient
 #define pi 3.1415926
-// #define INF 0xFFFFFFF
-#define INF 9
+#define INF 0xFFFFFFF
+// #define INF 9
 double N0, sgm; // 信道噪声
 
 PARAMETER *Parameter;
-DECODE_METHOD decode_method = VITERBI_HARD;
+DECODE_METHOD decode_method = VITERBI_SOFT;
 int reg_num;   // the number of the register of encoder structure
 int state_num; // the number of the state of encoder structure
 int input_len; // 每次输入的比特数，在758中为1
@@ -46,7 +46,7 @@ TLine *TLineTable;
 TNode *TNodeTable;
 
 int message[message_length], codeword[codeword_length]; // message and codeword，原信息和编码之后的信息
-int codeword2[codeword_length];
+// int codeword2[codeword_length];
 int re_codeword[codeword_length]; // the received codeword
 int de_message[message_length];	  // the decoding message
 
@@ -82,9 +82,9 @@ int main()
 	// scanf("%f", &finish);
 	// printf("\nPlease input the number of message: ");
 	// scanf("%d", &seq_num);
-	start = -20, finish = 20; // 起始和结束的SNR，浮点数，单位为dB
-	float SNR_step = 1;		 // SNR步长
-	seq_num = 1;			 // 仿真次数
+	start = 200, finish = 200; // 起始和结束的SNR，浮点数，单位为dB
+	float SNR_step = 1;		   // SNR步长
+	seq_num = 1;			   // 仿真次数
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
@@ -121,7 +121,8 @@ int main()
 			channel(); // TODO: 记得改回来
 
 			// BPSK demodulation, it's needed in hard-decision Viterbi decoder
-			if (decode_method == VITERBI_HARD){
+			if (decode_method == VITERBI_HARD)
+			{
 				demodulation();
 			}
 
@@ -388,7 +389,7 @@ void demodulation()
 	}
 }
 
-void decoder_viterbi_hard()
+void decoder_viterbi(int MODE)
 {
 	// codeword[0] = 0;
 	// codeword[1] = 0;
@@ -408,7 +409,7 @@ void decoder_viterbi_hard()
 	// codeword[15] = 0;
 	// codeword[16] = 1;
 	// codeword[17] = 0;
-	int Col = message_length+1;
+	int Col = message_length + 1;
 	VNODE *VNodeTable = (VNODE *)calloc(state_num * Col, sizeof(VNODE));
 
 	// 初始化
@@ -431,7 +432,7 @@ void decoder_viterbi_hard()
 			VNodeTable[ij].min_cost_path = INF;
 		}
 	}
-	VNodeTable[0].active = 1;				   // 第一列只有 0 处是有效节点
+	VNodeTable[0].active = 1;		// 第一列只有 0 处是有效节点
 	VNodeTable[Col - 1].active = 1; // 最后一列只有 0 处是有效节点
 	// 对图进行裁剪，删掉log2(state_num) = reg_num列的不应该出现的节点
 	for (int col = 1; col < reg_num; col++)
@@ -477,8 +478,8 @@ void decoder_viterbi_hard()
 	for (int col = 1; col < Col; col++)
 	{
 		// 计算每条边的差
-		int col_mincost = INF; // 这列节点的最小代价
-		int decode_output = INF; // 这列节点的输出
+		double col_mincost = INF; // 这列节点的最小代价
+		int decode_output = INF;  // 这列节点的输出
 		for (int row = 0; row < state_num; row++)
 		{
 			int ij = row * Col + col;
@@ -492,15 +493,36 @@ void decoder_viterbi_hard()
 					int preij = preid * Col + col - 1;
 					if (VNodeTable[preij].active)
 					{
-						// 从codeword中提取输出
-						int *codeword_section = (int*)calloc(Parameter->nout, sizeof(int));
-						for (int n = 0; n < Parameter->nout; n++)
-						{
-							codeword_section[n] = re_codeword[(col - 1)*Parameter->nout + n];
-						}
-						int codeword_output = array2int(codeword_section, Parameter->nout);
 						// 计算当前节点的代价
-						int cost = VNodeTable[preij].min_cost + count_ones(TLineTable[preLine->id].output ^ codeword_output);
+						double cost = 0.0;
+						if (MODE == VITERBI_HARD)
+						{
+							// 从codeword中提取输出
+							int *codeword_section = (int *)calloc(Parameter->nout, sizeof(int));
+							for (int n = 0; n < Parameter->nout; n++)
+							{
+								codeword_section[n] = re_codeword[(col - 1) * Parameter->nout + n];
+							}
+							int codeword_output = array2int(codeword_section, Parameter->nout);
+							cost = VNodeTable[preij].min_cost + count_ones(TLineTable[preLine->id].output ^ codeword_output);
+						}
+						else if (MODE == VITERBI_SOFT)
+						{
+							int *line_output = int2array(TLineTable[preLine->id].output, Parameter->nout, BIN);
+							// 2PSK
+							for (int n = 0; n < Parameter->nout; n++)
+							{
+								line_output[n] = -(2 * line_output[n] - 1);
+							}
+							cost = VNodeTable[preij].min_cost;
+							// 计算欧氏距离
+							for (int n = 0; n < Parameter->nout; n++)
+							{
+								cost += pow(rx_symbol[(col - 1) * Parameter->nout + n][0] - (double)line_output[n], 2); // x
+								cost += pow(rx_symbol[(col - 1) * Parameter->nout + n][1] - 0, 2); // y
+							}
+						}
+
 						if (cost < VNodeTable[ij].min_cost)
 						{
 							VNodeTable[ij].min_cost = cost;
@@ -515,10 +537,11 @@ void decoder_viterbi_hard()
 				}
 			}
 		}
-		if (DEBUG_MODE) {
-			printf("mincost:%d output:%d\n", col_mincost, decode_output);
+		if (DEBUG_MODE)
+		{
+			printf("mincost:%.2f output:%d\n", col_mincost, decode_output);
 		}
-		de_message[col-1] = decode_output;
+		de_message[col - 1] = decode_output;
 	}
 
 	if (DEBUG_MODE)
@@ -529,10 +552,10 @@ void decoder_viterbi_hard()
 			for (int j = 0; j < Col; j++)
 			{
 				printf("(%.2f %.2f) ",
-					//    VNodeTable[i * message_length + j].state,
-					//    VNodeTable[i * message_length + j].active,
+					   //    VNodeTable[i * message_length + j].state,
+					   //    VNodeTable[i * message_length + j].active,
 					   VNodeTable[i * Col + j].min_cost,
-					   VNodeTable[i * Col + j].min_cost_path+1);
+					   VNodeTable[i * Col + j].min_cost_path + 1);
 			}
 			printf("\n");
 		}
@@ -545,7 +568,10 @@ void decoder()
 	switch (decode_method)
 	{
 	case VITERBI_HARD:
-		decoder_viterbi_hard();
+		decoder_viterbi(VITERBI_HARD);
+		break;
+	case VITERBI_SOFT:
+		decoder_viterbi(VITERBI_SOFT);
 		break;
 	}
 }
