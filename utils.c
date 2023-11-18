@@ -5,6 +5,17 @@
 #include <math.h>
 #include <assert.h>
 
+int count_ones(int num)
+{
+    int count = 0;
+    while (num)
+    {
+        count += num & 1;
+        num >>= 1;
+    }
+    return count;
+}
+
 // 获得数字的长度，mode0为二进制序列的长度，mode1为十进制的长度
 int get_len(int num, int mode)
 {
@@ -100,11 +111,12 @@ PARAMETER *get_essential_params(int a, int b, int N)
 }
 
 // int main(){
-//     int *a = (int*)malloc(sizeof(int)*3);
-//     a[0] = 1;
-//     a[1] = 0;
-//     a[2] = 0;
-//     printf("%d\n", array2int(a, 3));
+//     printf("%d", count_ones(5));
+// //     int *a = (int*)malloc(sizeof(int)*3);
+// //     a[0] = 1;
+// //     a[1] = 0;
+// //     a[2] = 0;
+// //     printf("%d\n", array2int(a, 3));
 
 //     return 0;
 // }

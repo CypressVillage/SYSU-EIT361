@@ -7,8 +7,8 @@
 
 typedef enum
 {
-    VICTERBI_HARD,
-    VICTERBI_SOFT,
+    VITERBI_HARD,
+    VITERBI_SOFT,
     BCJR
 } DECODE_METHOD;
 
@@ -29,14 +29,14 @@ typedef struct TrellisNode
 
 typedef struct TrellisLine
 {
-    // int id;
+    int id;
     int input;
     int output;
     struct TrellisNode *BeginNode;
     struct TrellisNode *EndNode;
 } TLine;
 
-typedef struct VICTERBI_MAT_NODE
+typedef struct VITERBI_MAT_NODE
 {
     float min_cost;
     float min_cost_path;
@@ -44,6 +44,7 @@ typedef struct VICTERBI_MAT_NODE
     int active;
 } VNODE;
 
+int count_ones(int num);
 int *int2array(int num, int len, int mode);
 int array2int(int *arr, int len);
 

@@ -25,17 +25,18 @@ void demodulation();
 void channel();
 void decoder();
 
-#define message_length 5   // the length of message
-#define codeword_length 10 // the length of codeword
+#define message_length 7   // the length of message
+#define codeword_length 14 // the length of codeword
 float code_rate;		   // 码率
 
 // channel coefficient
 #define pi 3.1415926
-#define INF 0xFFFFFFF
+// #define INF 0xFFFFFFF
+#define INF 9
 double N0, sgm; // 信道噪声
 
 PARAMETER *Parameter;
-DECODE_METHOD decode_method = VICTERBI_HARD;
+DECODE_METHOD decode_method = VITERBI_HARD;
 int reg_num;   // the number of the register of encoder structure
 int state_num; // the number of the state of encoder structure
 int input_len; // 每次输入的比特数，在758中为1
@@ -245,6 +246,7 @@ void trellis()
 	for (int i = 0; i < Tlinenum; i++)
 	{
 		// 每条line就是state table里的一行
+		TLineTable[i].id = i;
 		TLineTable[i].input = state_table[i * 5];
 		TLineTable[i].output = state_table[i * 5 + 3];
 		TLineTable[i].BeginNode = &TNodeTable[state_table[i * 5 + 1]];
@@ -252,7 +254,7 @@ void trellis()
 
 		TNodeTable[state_table[i * 5 + 1]].RightLines[TLineTable[i].input] = TLineTable[i];
 		// BUG: 相同input会指向同一个状态导致不能用input来区分两条边
-		TNodeTable[state_table[i * 5 + 2]].LeftLines[TLineTable[i].BeginNode->data%2] = TLineTable[i];
+		TNodeTable[state_table[i * 5 + 2]].LeftLines[TLineTable[i].BeginNode->data % 2] = TLineTable[i];
 	}
 
 	// print trellis
@@ -372,8 +374,26 @@ void demodulation()
 	}
 }
 
-void decoder_victerbi_hard()
+void decoder_viterbi_hard()
 {
+	codeword[0] = 0;
+	codeword[1] = 0;
+	codeword[2] = 1;
+	codeword[3] = 1;
+	codeword[4] = 1;
+	codeword[5] = 1;
+	codeword[6] = 0;
+	codeword[7] = 1;
+	codeword[8] = 0;
+	codeword[9] = 0;
+	codeword[10] = 1;
+	codeword[11] = 0;
+	codeword[12] = 1;
+	codeword[13] = 1;
+	// codeword[14] = 0;
+	// codeword[15] = 0;
+	// codeword[16] = 1;
+	// codeword[17] = 0;
 	VNODE *VNodeTable = (VNODE *)calloc(state_num * message_length, sizeof(VNODE));
 
 	// 初始化
@@ -408,7 +428,7 @@ void decoder_victerbi_hard()
 			for (int nout = 0; nout < Parameter->nout; nout++)
 			{
 				int preid = TNodeTable[row].LeftLines[nout].BeginNode->data;
-				if (VNodeTable[preid * message_length + col-1].active)
+				if (VNodeTable[preid * message_length + col - 1].active)
 				{
 					is_parent_active = 1;
 				}
@@ -435,6 +455,55 @@ void decoder_victerbi_hard()
 		}
 	}
 
+	// 开始译码
+	VNodeTable[0].min_cost = 0;
+	VNodeTable[0].min_cost_path = 0;
+	// 计算每一列最短路径
+	for (int col = 1; col < message_length; col++)
+	{
+		// 计算每条边的差
+		int col_mincost = INF; // 这列节点的最小代价
+		int decode_output; // 这列节点的输出
+		for (int row = 0; row < state_num; row++)
+		{
+			int ij = row * message_length + col;
+			if (VNodeTable[ij].active)
+			{
+				// 计算到这个节点的所有边中的最短路径
+				int min = INF;
+				for (int nout = 0; nout < Parameter->nout; nout++)
+				{
+					TLine *preLine = &TNodeTable[row].LeftLines[nout];
+					int preid = preLine->BeginNode->data;
+					int preij = preid * message_length + col - 1;
+					if (VNodeTable[preij].active)
+					{
+						// 从codeword中提取输出
+						int *codeword_section = (int*)calloc(Parameter->nout, sizeof(int));
+						for (int n = 0; n < Parameter->nout; n++)
+						{
+							codeword_section[n] = codeword[(col - 1)*Parameter->nout + n];
+						}
+						int codeword_output = array2int(codeword_section, Parameter->nout);
+						// 计算当前节点的代价
+						int cost = VNodeTable[preij].min_cost + count_ones(TLineTable[preLine->id].output ^ codeword_output);
+						if (cost < VNodeTable[ij].min_cost)
+						{
+							VNodeTable[ij].min_cost = cost;
+							VNodeTable[ij].min_cost_path = TNodeTable[row].LeftLines[nout].input;
+						}
+					}
+				}
+				if (VNodeTable[ij].min_cost < col_mincost)
+				{
+					col_mincost = VNodeTable[ij].min_cost;
+					decode_output = VNodeTable[ij].min_cost_path;
+				}
+			}
+		}
+		printf("mincost:%d output:%d\n", col_mincost, decode_output);
+	}
+
 	if (DEBUG_MODE)
 	{
 		printf("[DEBUG]: VNodeTable:(state,active,cost,path)\n");
@@ -442,11 +511,11 @@ void decoder_victerbi_hard()
 		{
 			for (int j = 0; j < message_length; j++)
 			{
-				printf("(%d %d %.2f %.2f) ",
-					   VNodeTable[i * message_length + j].state,
-					   VNodeTable[i * message_length + j].active,
+				printf("(%.2f %.2f) ",
+					//    VNodeTable[i * message_length + j].state,
+					//    VNodeTable[i * message_length + j].active,
 					   VNodeTable[i * message_length + j].min_cost,
-					   VNodeTable[i * message_length + j].min_cost_path);
+					   VNodeTable[i * message_length + j].min_cost_path+1);
 			}
 			printf("\n");
 		}
@@ -458,8 +527,8 @@ void decoder()
 {
 	switch (decode_method)
 	{
-	case VICTERBI_HARD:
-		decoder_victerbi_hard();
+	case VITERBI_HARD:
+		decoder_viterbi_hard();
 		break;
 	}
 }
