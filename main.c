@@ -53,10 +53,12 @@ int de_message[message_length];	  // the decoding message
 double tx_symbol[codeword_length][2]; // the transmitted symbols
 double rx_symbol[codeword_length][2]; // the received symbols
 
+FILE *fp; // file pointer
+
 int main()
 {
 	code_rate = (float)message_length / (float)codeword_length;
-	Parameter = get_essential_params(171, 133, 8);
+	Parameter = get_essential_params(7, 5, 8);
 	reg_num = Parameter->reg_num; // the number of the register of encoder structure
 	state_num = pow(2, reg_num);  // the number of the state of encoder structure
 	input_len = 1;				  // 每次输入的比特数，在758中为1
@@ -83,8 +85,9 @@ int main()
 	// printf("\nPlease input the number of message: ");
 	// scanf("%d", &seq_num);
 	start = -5, finish = 5; // 起始和结束的SNR，浮点数，单位为dB
-	float SNR_step = 1;		   // SNR步长
-	seq_num = 3;			   // 仿真次数
+	float SNR_step = 0.1;		   // SNR步长
+	seq_num = 20;			   // 仿真次数
+	fp = fopen("data.txt", "w");
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
@@ -162,10 +165,14 @@ int main()
 		}
 
 		// calculate the BER
-		//  BER = (double)bit_error / (double)(message_length*seq_num);
+		BER = (double)bit_error / (double)(message_length*seq_num);
+		// wrire the result into file data.txt
+		fprintf(fp, "%f %E\n", SNR, BER);
 
 		// printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\n", progress, SNR, bit_error, BER);
 	}
+	fclose(fp);
+	free(fp);
 	// system("pause");
 	return 0;
 }
