@@ -85,8 +85,8 @@ int main()
 	// printf("\nPlease input the number of message: ");
 	// scanf("%d", &seq_num);
 	start = -5, finish = 5; // 起始和结束的SNR，浮点数，单位为dB
-	float SNR_step = 0.1;		   // SNR步长
-	seq_num = 20;			   // 仿真次数
+	float SNR_step = 1;		// SNR步长
+	seq_num = 2;			// 仿真次数
 	fp = fopen("data.txt", "w");
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
@@ -165,14 +165,13 @@ int main()
 		}
 
 		// calculate the BER
-		BER = (double)bit_error / (double)(message_length*seq_num);
+		BER = (double)bit_error / (double)(message_length * seq_num);
 		// wrire the result into file data.txt
 		fprintf(fp, "%f %E\n", SNR, BER);
 
 		// printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\n", progress, SNR, bit_error, BER);
 	}
 	fclose(fp);
-	free(fp);
 	// system("pause");
 	return 0;
 }
@@ -548,6 +547,25 @@ void decoder_viterbi(int MODE)
 		}
 		de_message[col - 1] = decode_output;
 	}
+
+	// 后向遍历，找到最短路径
+	// int mincost_path = INF;
+	// double mincost = INF;
+	// for (int col = Col-1; col > 0; col++)
+	// {
+	// 	for (int row = 0; row < state_num; row++)
+	// 	{
+	// 		int ij = row * Col + Col - 1;
+	// 		if (!VNodeTable[ij].active)
+	// 			continue;
+	// 		if (VNodeTable[ij].min_cost < mincost)
+	// 		{
+	// 			mincost = VNodeTable[ij].min_cost;
+	// 			mincost_path = VNodeTable[ij].min_cost_path;
+	// 		}
+	// 	}
+	// 	de_message[Col - 1] = mincost_path;
+	// }
 
 	if (DEBUG_MODE)
 	{
