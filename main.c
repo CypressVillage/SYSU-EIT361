@@ -35,7 +35,7 @@ float code_rate;						   // 码率
 double N0, sgm; // 信道噪声
 
 PARAMETER *Parameter;
-DECODE_METHOD decode_method = BCJR;
+DECODE_METHOD decode_method = VITERBI_SOFT;
 int reg_num;   // the number of the register of encoder structure
 int state_num; // the number of the state of encoder structure
 int input_len; // 每次输入的比特数，在758中为1
@@ -57,7 +57,7 @@ FILE *fp; // file pointer
 int main()
 {
 	code_rate = (float)message_length / (float)codeword_length;
-	Parameter = get_essential_params(7, 5, 8);
+	Parameter = get_essential_params(171, 133, 8);
 	reg_num = Parameter->reg_num; // the number of the register of encoder structure
 	state_num = pow(2, reg_num);  // the number of the state of encoder structure
 	input_len = 1;				  // 每次输入的比特数，在758中为1
@@ -85,7 +85,7 @@ int main()
 	// scanf("%d", &seq_num);
 	start = -5, finish = 5; // 起始和结束的SNR，浮点数，单位为dB
 	float SNR_step = 1;		// SNR步长
-	seq_num = 2;			// 仿真次数
+	seq_num = 20;			// 仿真次数
 	fp = fopen("data.txt", "w");
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
@@ -144,7 +144,7 @@ int main()
 			BER = (double)bit_error / (double)(message_length * seq);
 
 			// print the intermediate result
-			printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1ld, BER=%E\n", progress, SNR, bit_error, BER);
+			printf("Progress = %5.1f | SNR = %5.1f | Bit Errors = %5.1ld | BER = %E\r", progress, SNR, bit_error, BER);
 			if (DEBUG_MODE)
 			{
 				printf("[DEBUG]:\n");
@@ -167,8 +167,8 @@ int main()
 		BER = (double)bit_error / (double)(message_length * seq_num);
 		// wrire the result into file data.txt
 		fprintf(fp, "%f %E\n", SNR, BER);
-
-		// printf("Progress=%2.1f, SNR=%2.1f, Bit Errors=%2.1d, BER=%E\n", progress, SNR, bit_error, BER);
+		
+		printf("Progress = %5.1f | SNR = %5.1f | Bit Errors = %5.1ld | BER = %E\n", progress, SNR, bit_error, BER);
 	}
 	fclose(fp);
 	// system("pause");
@@ -470,7 +470,7 @@ void decoder_viterbi(int MODE)
 			int ij = row * Col + col;
 			if (!VNodeTable[ij].active)
 				continue;
-			// 计算到这个节点的所有边中的最短路径
+			// 计算从起点到这个节点的所有边中的最短路径
 			for (int nout = 0; nout < Parameter->nout; nout++)
 			{
 				TLine *preLine = &TNodeTable[row].LeftLines[nout];
@@ -482,7 +482,7 @@ void decoder_viterbi(int MODE)
 				double cost = 0.0;
 				if (MODE == VITERBI_HARD)
 				{
-					// 从codeword中提取输出
+					// 从re_codeword中提取输出
 					int *codeword_section = (int *)calloc(Parameter->nout, sizeof(int));
 					for (int n = 0; n < Parameter->nout; n++)
 					{

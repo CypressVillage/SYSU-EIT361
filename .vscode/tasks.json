@@ -8,6 +8,7 @@
                 "utils.c",
                 "utils.h",
                 "-fdiagnostics-color=always",
+                "-Og",
                 "-g",
                 "${file}",
                 "-o",
