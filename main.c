@@ -590,7 +590,7 @@ void decoder_bcjr()
 {
 	// BCJR decoder
 	// 输入rx_symbol,输出de_message
-	double square_sigma = 0.45;
+	double squared_sigma = N0 / 2;
 	double alpha[message_length][4];
 	double beta[message_length][4];
 	double gamma_pie_00;
@@ -617,24 +617,24 @@ void decoder_bcjr()
 		// double ra2 = rx_symbol[2 * i-2][1];
 		double rb1 = rx_symbol[2 * i - 1][0];
 		// double rb2 = rx_symbol[2 * i - 1][1];
-		/*gamma_pie_00 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));   //v = 00, +1, +1
-		gamma_pie_02 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 11, -1, -1
-		gamma_pie_10 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));  // v = 10, -1, +1
-		gamma_pie_12 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 01, +1, -1
-		gamma_pie_21 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));  // v = 00, +1, +1
-		gamma_pie_23 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 11, -1,-1
-		gamma_pie_31 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));   // v = 10, -1, +1
-		gamma_pie_33 = exp(-1 / (2 * square_sigma) * (pow((ra1- 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));   // v = 01, +1, -1*/
-		gamma_pie_00 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
-		gamma_pie_02 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
-		gamma_pie_10 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
+		/*gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));   //v = 00, +1, +1
+		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 11, -1, -1
+		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));  // v = 10, -1, +1
+		gamma_pie_12 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 01, +1, -1
+		gamma_pie_21 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));  // v = 00, +1, +1
+		gamma_pie_23 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 11, -1,-1
+		gamma_pie_31 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));   // v = 10, -1, +1
+		gamma_pie_33 = exp(-1 / (2 * squared_sigma) * (pow((ra1- 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));   // v = 01, +1, -1*/
+		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
+		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
+		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
 
-		gamma_pie_12 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
-		gamma_pie_21 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_12 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
+		gamma_pie_21 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 
-		gamma_pie_23 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
-		gamma_pie_31 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
-		gamma_pie_33 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_23 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
+		gamma_pie_31 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
+		gamma_pie_33 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 		alpha[i][0] = alpha[i - 1][0] * gamma_pie_00 + alpha[i - 1][1] * gamma_pie_10;
 		alpha[i][1] = alpha[i - 1][2] * gamma_pie_21 + alpha[i - 1][3] * gamma_pie_31;
 		alpha[i][2] = alpha[i - 1][0] * gamma_pie_02 + alpha[i - 1][1] * gamma_pie_12;
@@ -651,16 +651,16 @@ void decoder_bcjr()
 		// double ra2 = rx_symbol[2 * i +2][1];
 		double rb1 = rx_symbol[2 * i + 3][0];
 		// double rb2 = rx_symbol[2 * i +3][1];
-		gamma_pie_00 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
-		gamma_pie_02 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
-		gamma_pie_10 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
+		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
+		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
+		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
 
-		gamma_pie_12 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
-		gamma_pie_21 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_12 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
+		gamma_pie_21 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 
-		gamma_pie_23 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
-		gamma_pie_31 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
-		gamma_pie_33 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_23 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
+		gamma_pie_31 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
+		gamma_pie_33 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 		beta[i][0] = beta[i + 1][0] * gamma_pie_00 + beta[i + 1][2] * gamma_pie_02;
 		beta[i][1] = beta[i + 1][0] * gamma_pie_10 + beta[i + 1][2] * gamma_pie_12;
 		beta[i][2] = beta[i + 1][1] * gamma_pie_21 + beta[i + 1][3] * gamma_pie_23;
@@ -677,16 +677,16 @@ void decoder_bcjr()
 		// double ra2 = rx_symbol[2 * i][1];
 		double rb1 = rx_symbol[2 * i + 1][0];
 		// double rb2 = rx_symbol[2 * i + 1][1];
-		gamma_pie_00 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
-		gamma_pie_02 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
-		gamma_pie_10 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
+		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
+		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
+		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
 
-		gamma_pie_12 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
-		gamma_pie_21 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_12 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
+		gamma_pie_21 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 
-		gamma_pie_23 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
-		gamma_pie_31 = exp(-1 / (2 * square_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
-		gamma_pie_33 = exp(-1 / (2 * square_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_23 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
+		gamma_pie_31 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
+		gamma_pie_33 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 		p0 = alpha[i][0] * gamma_pie_00 * beta[i][0] + alpha[i][1] * gamma_pie_10 * beta[i][0] + alpha[i][2] * gamma_pie_21 * beta[i][1] + alpha[i][3] * gamma_pie_31 * beta[i][1];
 		p1 = alpha[i][0] * gamma_pie_02 * beta[i][2] + alpha[i][1] * gamma_pie_12 * beta[i][2] + alpha[i][2] * gamma_pie_23 * beta[i][3] + alpha[i][3] * gamma_pie_33 * beta[i][3];
 		double p_sum = p0 + p1;
