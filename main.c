@@ -32,7 +32,6 @@ float code_rate;						   // 码率
 // channel coefficient
 #define pi 3.1415926
 #define INF 0xFFFFFFF
-// #define INF 9
 double N0, sgm; // 信道噪声
 
 PARAMETER *Parameter;
@@ -92,7 +91,7 @@ int main()
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
 		// channel noise
-		N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0); // TODO：为什么是1/code_rate
+		N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0);
 		sgm = sqrt(N0 / 2);
 
 		bit_error = 0;
@@ -121,7 +120,7 @@ int main()
 			modulation();
 
 			// AWGN channel
-			channel(); // TODO: 记得改回来
+			channel();
 
 			// BPSK demodulation, it's needed in hard-decision Viterbi decoder
 			if (decode_method == VITERBI_HARD)
@@ -287,10 +286,10 @@ void encoder()
 {
 	// convolution encoder, the input is message[] and the output is codeword[]
 
-	// 先写一个最简单的(7, 5, 8)
-	// state: s0, s1
-	// input: u
-	// output: c1 = u + s0 + s1, c2 = u + s1
+	// // 先写一个最简单的(7, 5, 8)
+	// // state: s0, s1
+	// // input: u
+	// // output: c1 = u + s0 + s1, c2 = u + s1
 	// int s0 = 0, s1 = 0;
 	// printf("\n");
 	// for (int ii = 0; ii < message_length; ii++){
@@ -326,10 +325,8 @@ void encoder()
 			{
 				codeword[Parameter->nout * i + j] ^= curStates[k] * Parameter->trans_mat[(reg_num + 1) * j + k];
 			}
-			// printf("%d ", codeword[Parameter->nout * i + j]);
 		}
 	}
-	// printf("\n");
 	free(curStates);
 }
 
@@ -397,24 +394,6 @@ void demodulation()
 
 void decoder_viterbi(int MODE)
 {
-	// codeword[0] = 0;
-	// codeword[1] = 0;
-	// codeword[2] = 1;
-	// codeword[3] = 1;
-	// codeword[4] = 1;
-	// codeword[5] = 1;
-	// codeword[6] = 0;
-	// codeword[7] = 1;
-	// codeword[8] = 0;
-	// codeword[9] = 0;
-	// codeword[10] = 1;
-	// codeword[11] = 0;
-	// codeword[12] = 1;
-	// codeword[13] = 1;
-	// codeword[14] = 0;
-	// codeword[15] = 0;
-	// codeword[16] = 1;
-	// codeword[17] = 0;
 	int Col = message_length + 1;
 	VNODE *VNodeTable = (VNODE *)calloc(state_num * Col, sizeof(VNODE));
 
@@ -548,25 +527,6 @@ void decoder_viterbi(int MODE)
 		de_message[col - 1] = decode_output;
 	}
 
-	// 后向遍历，找到最短路径
-	// int mincost_path = INF;
-	// double mincost = INF;
-	// for (int col = Col-1; col > 0; col++)
-	// {
-	// 	for (int row = 0; row < state_num; row++)
-	// 	{
-	// 		int ij = row * Col + Col - 1;
-	// 		if (!VNodeTable[ij].active)
-	// 			continue;
-	// 		if (VNodeTable[ij].min_cost < mincost)
-	// 		{
-	// 			mincost = VNodeTable[ij].min_cost;
-	// 			mincost_path = VNodeTable[ij].min_cost_path;
-	// 		}
-	// 	}
-	// 	de_message[Col - 1] = mincost_path;
-	// }
-
 	if (DEBUG_MODE)
 	{
 		printf("[DEBUG]: VNodeTable:(state,active,cost,path)\n");
@@ -575,8 +535,6 @@ void decoder_viterbi(int MODE)
 			for (int j = 0; j < Col; j++)
 			{
 				printf("(%.2f %.2f) ",
-					   //    VNodeTable[i * message_length + j].state,
-					   //    VNodeTable[i * message_length + j].active,
 					   VNodeTable[i * Col + j].min_cost,
 					   VNodeTable[i * Col + j].min_cost_path + 1);
 			}
@@ -588,7 +546,6 @@ void decoder_viterbi(int MODE)
 
 void decoder_bcjr()
 {
-	// BCJR decoder
 	// 输入rx_symbol,输出de_message
 	double squared_sigma = N0 / 2;
 	double alpha[message_length][4];
@@ -614,17 +571,7 @@ void decoder_bcjr()
 	for (int i = 1; i < message_length; i++)
 	{
 		double ra1 = rx_symbol[2 * i - 2][0];
-		// double ra2 = rx_symbol[2 * i-2][1];
 		double rb1 = rx_symbol[2 * i - 1][0];
-		// double rb2 = rx_symbol[2 * i - 1][1];
-		/*gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));   //v = 00, +1, +1
-		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 11, -1, -1
-		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));  // v = 10, -1, +1
-		gamma_pie_12 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 01, +1, -1
-		gamma_pie_21 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));  // v = 00, +1, +1
-		gamma_pie_23 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));  // v = 11, -1,-1
-		gamma_pie_31 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow(ra2, 2) + pow((rb1 - 1), 2) + pow(rb2, 2)));   // v = 10, -1, +1
-		gamma_pie_33 = exp(-1 / (2 * squared_sigma) * (pow((ra1- 1), 2) + pow(ra2, 2) + pow((rb1 + 1), 2) + pow(rb2, 2)));   // v = 01, +1, -1*/
 		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
 		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
 		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
@@ -648,9 +595,7 @@ void decoder_bcjr()
 	for (int i = message_length - 2; i >= 0; i--)
 	{
 		double ra1 = rx_symbol[2 * i + 2][0];
-		// double ra2 = rx_symbol[2 * i +2][1];
 		double rb1 = rx_symbol[2 * i + 3][0];
-		// double rb2 = rx_symbol[2 * i +3][1];
 		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
 		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
 		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
@@ -674,9 +619,7 @@ void decoder_bcjr()
 	for (int i = 0; i < message_length; i++)
 	{
 		double ra1 = rx_symbol[2 * i][0];
-		// double ra2 = rx_symbol[2 * i][1];
 		double rb1 = rx_symbol[2 * i + 1][0];
-		// double rb2 = rx_symbol[2 * i + 1][1];
 		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
 		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
 		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
@@ -699,6 +642,11 @@ void decoder_bcjr()
 	}
 }
 
+void decoder_turbo()
+{
+	// turbo decoder
+}
+
 void decoder()
 {
 	switch (decode_method)
@@ -711,6 +659,9 @@ void decoder()
 		break;
 	case BCJR:
 		decoder_bcjr();
+		break;
+	case TURBO:
+		// decoder_turbo();
 		break;
 	}
 }

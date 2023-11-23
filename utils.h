@@ -9,7 +9,8 @@ typedef enum
 {
     VITERBI_HARD,
     VITERBI_SOFT,
-    BCJR
+    BCJR,
+    TURBO,
 } DECODE_METHOD;
 
 typedef struct
