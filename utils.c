@@ -5,6 +5,7 @@
 #include <math.h>
 #include <assert.h>
 
+// 计算十进制数转成二进制后1的个数
 int count_ones(int num)
 {
     int count = 0;
@@ -36,6 +37,7 @@ int get_len(int num, int mode)
     return len;
 }
 
+// 将数字转成数组，mode0为二进制序列，mode1为十进制序列
 int *int2array(int num, int len, int mode)
 {
     int *a = (int *)malloc(sizeof(int) * len);
@@ -56,6 +58,7 @@ int *int2array(int num, int len, int mode)
     return a;
 }
 
+// 将数组转成数字
 int array2int(int *arr, int len)
 {
     int num = 0;
