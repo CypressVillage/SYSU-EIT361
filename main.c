@@ -8,6 +8,7 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 
 /** 修改说明：
 1. 原代码中 state_num 更改为 reg_num，为寄存器数量；state_num 为寄存器组的状态数量，state_num = 2^reg_num
+2. 信源序列长度在第 21 行，样本设置在第 120 行
 */
 
 // #define  _CRT_SECURE_NO_WARNINGS // vs取消scanf报错
@@ -17,16 +18,31 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #include <math.h>
 #include "utils.h"
 
+#define message_length 500				   // the length of message
+#define codeword_length message_length * 2 // the length of codeword
+DECODE_METHOD decode_method = TURBO;
+
+
 void statetable();
 void trellis();
 void encoder();
 void modulation();
 void demodulation();
 void channel();
-void decoder();
+void decoder(float SNR_dB);
 
-#define message_length 1000				   // the length of message
-#define codeword_length message_length * 2 // the length of codeword
+//functions for turbo
+void turbo_encoder(int message_len);
+void turbo_decoder(float Snr_dB);
+void turbo_statetable();
+void shuffle(int *array, int len_of_array); // this function is used to shuffle an array to creat the interleaving pattern
+void puncture(int *codeword_array, int len_of_message_array); // this function is used to puncture the codeword in turbo encoder
+void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteriori_prob, double **extrinsic_prob, int puncture_flag, int interleave_flag); // this function is used to decode the codeword by BCJR algorithm
+//because the code rate in turbo may change if puncture_flag = 1, so we need to reconstruct the following functions
+void modulation_for_turbo(); // this function is used to modulate the codeword in turbo encoder because the code rate in turbo may change if puncture_flag = 1
+void channel_for_turbo();
+
+
 float code_rate;						   // 码率
 
 // channel coefficient
@@ -35,7 +51,6 @@ float code_rate;						   // 码率
 double N0, sgm; // 信道噪声
 
 PARAMETER *Parameter;
-DECODE_METHOD decode_method = VITERBI_SOFT;
 int reg_num;   // the number of the register of encoder structure
 int state_num; // the number of the state of encoder structure
 int input_len; // 每次输入的比特数，在758中为1
@@ -54,10 +69,24 @@ double rx_symbol[codeword_length][2]; // the received symbols
 
 FILE *fp; // file pointer
 
+//variables for turbo
+#define PRINT_TURBO_CODEWORD 0 // if PRINT_TURBO = 1, the turbo encoder will print the message and the codeword
+int turbo_codeword_length = message_length * 3; // the length of codeword in turbo
+int turbo_reg_num = 2; //the number of the state of register in the turbo encoder structure
+int turbo_state_num; //the number of the state of turbo encoder structure
+int input_state_num = 2; //the number of the input of turbo encoder structure
+int *random_interleaving_pattern;//the random interleaving pattern for turbo
+int puncture_flag = 0; //if puncture_flag = 1, the turbo encoder will puncture the codeword
+double **Turbo_Tx_symbol; // the transmitted symbols for turbo
+double **Turbo_Rx_symbol; // the received symbols for turbo
+int *turbo_codeword;
+int **turbo_state_table;
+int num_of_iteration = 1; // the number of iteration for turbo decoder
+
 int main()
 {
 	code_rate = (float)message_length / (float)codeword_length;
-	Parameter = get_essential_params(171, 133, 8);
+	Parameter = get_essential_params(7, 5, 8);
 	reg_num = Parameter->reg_num; // the number of the register of encoder structure
 	state_num = pow(2, reg_num);  // the number of the state of encoder structure
 	input_len = 1;				  // 每次输入的比特数，在758中为1
@@ -70,6 +99,11 @@ int main()
 	double progress;
 
 	// generate state table
+	if (decode_method == TURBO)
+	{
+		turbo_statetable();
+	}
+	
 	statetable();
 	trellis();
 
@@ -115,12 +149,24 @@ int main()
 
 			// convolutional encoder
 			encoder();
-
+			if (decode_method == TURBO)
+			{
+				turbo_encoder(message_length);
+			}
+			
 			// BPSK modulation
 			modulation();
-
+			if (decode_method == TURBO)
+			{
+				modulation_for_turbo();
+			}
+			
 			// AWGN channel
 			channel();
+			if (decode_method == TURBO)
+			{
+				channel_for_turbo();
+			}
 
 			// BPSK demodulation, it's needed in hard-decision Viterbi decoder
 			if (decode_method == VITERBI_HARD)
@@ -129,7 +175,7 @@ int main()
 			}
 
 			// convolutional decoder
-			decoder();
+			decoder(SNR);
 
 			// calculate the number of bit error
 			for (i = 0; i < message_length; i++)
@@ -642,12 +688,7 @@ void decoder_bcjr()
 	}
 }
 
-void decoder_turbo()
-{
-	// turbo decoder
-}
-
-void decoder()
+void decoder(float SNR)
 {
 	switch (decode_method)
 	{
@@ -661,7 +702,403 @@ void decoder()
 		decoder_bcjr();
 		break;
 	case TURBO:
-		// decoder_turbo();
+		turbo_decoder(SNR);
 		break;
 	}
+}
+
+
+//state table in the slide of the chapter 6
+void turbo_statetable(){
+    turbo_state_num = pow(2, turbo_reg_num);
+    turbo_state_table = calloc(turbo_state_num * input_state_num, sizeof(int *));
+    for (int state = 0; state < turbo_state_num; state++)
+    {
+        for(int input_state = 0; input_state < input_state_num; input_state++)
+        {
+            turbo_state_table[state * input_state_num + input_state] = calloc(6, sizeof(int));
+            //input_state
+            turbo_state_table[state * input_state_num + input_state][0] = input_state;
+            //current_state of the first register
+            int Current_S1 = (state / 2) % 2;
+            turbo_state_table[state * input_state_num + input_state][1] = Current_S1;
+            //current_state of the second register
+            int Current_S2 = state % 2;
+            turbo_state_table[state * input_state_num + input_state][2] = Current_S2;
+            //output
+            int Output = (input_state + Current_S2) % 2;
+            turbo_state_table[state * input_state_num + input_state][3] = Output;
+            //next_state of the first register
+            turbo_state_table[state * input_state_num + input_state][4] = Output;
+            //next_state of the second register
+            turbo_state_table[state * input_state_num + input_state][5] = Current_S1;
+        }
+    }
+
+
+
+}
+
+void shuffle(int *array, int length_of_array) {
+    srand(time(NULL));
+    for (int i = length_of_array - 1; i > 0; i--) {
+        int j = rand() % (i + 1);
+        int temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+}
+
+void puncture(int *codeword_array, int len_of_message_array){
+    //puncture the second parity bit when message_index is even, puncture the first parity bit when message_index is odd
+    int *punctured_codeword = calloc(len_of_message_array * 2, sizeof(int));
+    for(int message_index = 0; message_index < len_of_message_array; message_index++)
+    {
+        punctured_codeword[message_index * 2] = codeword_array[message_index * 3];
+        punctured_codeword[message_index * 2 + 1] = codeword_array[message_index * 3 + (message_index % 2) + 1];
+    }
+    free(codeword_array);
+    codeword_array = punctured_codeword;
+}
+
+void turbo_encoder(int message_len){
+    int First_Register = 0;
+    int Second_Register = 0;
+    int table_row_index;
+    int codeword_length_for_turbo = message_len * 3;
+    turbo_codeword = calloc(message_len * 3, sizeof(int)); //3 is the code rate
+    //create the random interleaving pattern
+    random_interleaving_pattern = calloc(message_len, sizeof(int));
+    for(int i = 0; i < message_len; i++)
+    {
+        random_interleaving_pattern[i] = i;
+    }
+    shuffle(random_interleaving_pattern, message_len);
+    //interleaving the message
+    int *interleaved_message = calloc(message_len, sizeof(int));
+    for(int i = 0; i < message_len; i++)
+    {
+        interleaved_message[i] = message[random_interleaving_pattern[i]];
+    }
+    //encode the message
+    for(int message_index = 0; message_index < message_len; message_index++)
+    {
+        turbo_codeword[message_index * 3] = message[message_index]; //message bit
+        table_row_index = message[message_index] + First_Register * 4 + Second_Register * 2;  //the index of the row in the state table , the index is calculated by the input, register1, register2 and their weight
+        turbo_codeword[message_index * 3 + 1] = turbo_state_table[table_row_index][3]; //the first parity bit
+        Second_Register = First_Register;                       //the next state of the second register
+        First_Register = turbo_state_table[table_row_index][4]; //the next state of the first register
+    }
+    First_Register = 0;
+    Second_Register = 0;
+    for(int message_index = 0; message_index < message_len; message_index++)
+    {
+        table_row_index = interleaved_message[message_index] + First_Register * 4 + Second_Register * 2;  //the index of the row in the state table , the index is calculated by the input, register1, register2 and their weight
+        turbo_codeword[message_index * 3 + 2] = turbo_state_table[table_row_index][3]; //the second parity bit
+        Second_Register = First_Register;                       //the next state of the second register
+        First_Register = turbo_state_table[table_row_index][4]; //the next state of the first register
+    }
+    //puncture the codeword
+    if(puncture_flag == 1)
+    {
+        puncture(turbo_codeword, message_len);
+        codeword_length_for_turbo = message_len * 2;
+    }
+    //print the codeword
+    if(PRINT_TURBO_CODEWORD)
+    {
+        printf("[DEBUG]: message\n");
+        for(int i = 0; i < message_len; i++)
+        {
+            printf("%d ", message[i]);
+        }
+        printf("\n\n");
+        printf("[DEBUG]: random_interleaving_pattern\n");
+        for(int i = 0; i < message_len; i++)
+        {
+            printf("%d ", random_interleaving_pattern[i]);
+        }
+        printf("\n\n");
+        printf("[DEBUG]: interleaved_message\n");
+        for(int i = 0; i < message_len; i++)
+        {
+            printf("%d ", interleaved_message[i]);
+        }
+        printf("\n\n");
+        printf("[DEBUG]: turbo_codeword\n");
+        for(int i = 0; i < codeword_length_for_turbo; i++)
+        {
+            printf("%d ", turbo_codeword[i]);
+        }
+        printf("\n\n");
+    }
+
+
+
+}
+
+void modulation_for_turbo(){
+    // BPSK modulation
+    Turbo_Tx_symbol = calloc(turbo_codeword_length, sizeof(double *));
+    for(int i = 0; i < turbo_codeword_length; i++)
+    {
+        Turbo_Tx_symbol[i] = calloc(2, sizeof(double));
+    }
+    // 0 is mapped to (1,0) and 1 is mapped tp (-1,0)
+    for (int i = 0; i < codeword_length; i++)
+    {
+        Turbo_Tx_symbol[i][0] = -1 * (2 * turbo_codeword[i] - 1);
+        Turbo_Tx_symbol[i][1] = 0;
+    }
+}
+
+void channel_for_turbo(){
+    // AWGN channel
+    int i, j;
+    double u, r, g;
+    Turbo_Rx_symbol = calloc(turbo_codeword_length, sizeof(double *));
+    for(int i = 0; i < turbo_codeword_length; i++)
+    {
+        Turbo_Rx_symbol[i] = calloc(2, sizeof(double));
+    }
+
+    for (i = 0; i < turbo_codeword_length; i++)
+    {
+        for (j = 0; j < 2; j++)
+        {
+            u = (float)rand() / (float)RAND_MAX;
+            if (u == 1.0)
+                u = 0.999999;
+            r = sgm * sqrt(2.0 * log(1.0 / (1.0 - u)));
+
+            u = (float)rand() / (float)RAND_MAX;
+            if (u == 1.0)
+                u = 0.999999;
+            g = (float)r * cos(2 * pi * u);
+
+            Turbo_Rx_symbol[i][j] = Turbo_Tx_symbol[i][j] + g;
+        }
+    }
+}
+
+void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteriori_prob, double **extrinsic_prob, int puncture_flag, int interleave_flag){
+    /**
+     * @brief BCJR decoder for turbo code
+     * @param Snr the signal noise ratio
+     * @param priori_prob the priori probability of the message, priori_prob[0] is the probability of the message is 0, priori_prob[1] is the probability of the message is 1
+     * @param posteriori_prob the posteriori probability of the message, posteriori_prob[i][0] is the probability of the message is 0, posteriori_prob[i][1] is the probability of the message is 1
+     * @param extrinsic_prob the extrinsic probability of the message, extrinsic_prob[0] is the probability of the message is 0, extrinsic_prob[1] is the probability of the message is 1
+    */
+    double turbo_code_rate = message_length / turbo_codeword_length;
+    N0 = 1 / (2 * turbo_code_rate * pow(10, SNR_dB / 10.0));
+    sgm = sqrt(N0 / 2);
+    double alpha[message_length][4];
+    double beta[message_length][4];
+    double gamma_pie_00[message_length];  //the probability of state transition from 00 to 00
+    double gamma_pie_02[message_length];  //the probability of state transition from 00 to 10
+    double gamma_pie_10[message_length];  //the probability of state transition from 01 to 00
+    double gamma_pie_12[message_length];  //the probability of state transition from 01 to 10
+    double gamma_pie_21[message_length];  //the probability of state transition from 10 to 01
+    double gamma_pie_23[message_length];  //the probability of state transition from 10 to 11
+    double gamma_pie_31[message_length];  //the probability of state transition from 11 to 01
+    double gamma_pie_33[message_length];  //the probability of state transition from 11 to 11
+    double Pch_1[message_length][2];      //the probability of the message bit output, Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
+    double interleave_Pch_1[message_length][2];      //the probability of the message bit output, Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
+    double Pch_2[message_length][2];      //the probability of the parity bit output, Pch_2[i][0] is the probability of the parity bit is 0, Pch_2[i][1] is the probability of the parity bit is 1
+
+    double p0, p1; //the probability of the bit is 0 or 1
+    //initialize the alpha and beta
+    alpha[0][0] = 1;   //the probability of begin at the state  00
+    alpha[0][1] = 0;   //the probability of begin at the state  01
+    alpha[0][2] = 0;   //the probability of begin at the state  10
+    alpha[0][3] = 0;   //the probability of begin at the state  11
+    beta[message_length - 1][0] = 1;  //the probability of ending at the state 00
+    beta[message_length - 1][1] = 0;  //the probability of ending at the state 01
+    beta[message_length - 1][2] = 0;  //the probability of ending at the state 10
+    beta[message_length - 1][3] = 0;  //the probability of ending at the state 11
+    //calculate the Pch for each state
+    for(int i = 1;i < message_length; i++) {
+        // 0 is mapped to (1,0) and 1 is mapped tp (-1,0)
+        if(puncture_flag){
+            Pch_1[i][0] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[2 * i][0] - 1), 2) + pow(Turbo_Rx_symbol[2*i][1] - 0, 2)));  //output message codeword = 0  which is mapped to (1,0)
+            Pch_1[i][1] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[2 * i][0] + 1), 2) + pow(Turbo_Rx_symbol[2*i][1] - 0, 2)));  //output message codeword = 1  which is mapped to (-1,0)
+            if(interleave_flag){
+                //the odd parity bit is punctured
+                if(i % 2 == 0){
+                    Pch_2[i][0] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[2 * i + 1][0] - 1), 2) + pow(Turbo_Rx_symbol[2*i + 1][1] - 0, 2)));  //output parity codeword = 0  which is mapped to (1,0)
+                    Pch_2[i][1] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[2 * i + 1][0] + 1), 2) + pow(Turbo_Rx_symbol[2*i + 1][1] - 0, 2)));  //output parity codeword = 1  which is mapped to (-1,0)
+                }
+                else{
+                    Pch_2[i][0] = 0.5000;
+                    Pch_2[i][1] = 0.5000;
+                }
+            }
+            else{
+                //the even parity bit is punctured
+                if(i % 2 == 0){
+                    Pch_2[i][0] = 0.5000;
+                    Pch_2[i][1] = 0.5000;
+                }
+                else{
+                    Pch_2[i][0] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[2 * i + 1][0] - 1), 2) + pow(Turbo_Rx_symbol[2*i + 1][1] - 0, 2)));  //output parity codeword = 0  which is mapped to (1,0)
+                    Pch_2[i][1] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[2 * i + 1][0] + 1), 2) + pow(Turbo_Rx_symbol[2*i + 1][1] - 0, 2)));  //output parity codeword = 1  which is mapped to (-1,0)
+                }
+            }
+        }
+        else{
+            if (interleave_flag){
+                //message bit
+                Pch_1[i][0] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[3 * i][0] - 1), 2) + pow(Turbo_Rx_symbol[3 * i][1] - 0, 2)));  //output message codeword = 0  which is mapped to (1,0)
+                Pch_1[i][1] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[3 * i][0] + 1), 2) + pow(Turbo_Rx_symbol[3 * i][1] - 0, 2)));  //output message codeword = 1  which is mapped to (-1,0)
+                //parity bit
+                Pch_2[i][0] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[3 * i + 2][0] - 1), 2) + pow(Turbo_Rx_symbol[3 * i + 2][1] - 0, 2)));  //output parity codeword = 0  which is mapped to (1,0)
+                Pch_2[i][1] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[3 * i + 2][0] + 1), 2) + pow(Turbo_Rx_symbol[3 * i + 2][1] - 0, 2)));  //output parity codeword = 1  which is mapped to (-1,0)
+            }
+            else{
+                //message bit
+                Pch_1[i][0] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[3 * i][0] - 1), 2) + pow(Turbo_Rx_symbol[3 * i][1] - 0, 2)));  //output message codeword = 0  which is mapped to (1,0)
+                Pch_1[i][1] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[3 * i][0] + 1), 2) + pow(Turbo_Rx_symbol[3 * i][1] - 0, 2)));  //output message codeword = 1  which is mapped to (-1,0)
+                //parity bit
+                Pch_2[i][0] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[3 * i + 1][0] - 1), 2) + pow(Turbo_Rx_symbol[3 * i + 1][1] - 0, 2)));  //output parity codeword = 0  which is mapped to (1,0)
+                Pch_2[i][1] = exp(-1 / N0 * (pow((Turbo_Rx_symbol[3 * i + 1][0] + 1), 2) + pow(Turbo_Rx_symbol[3 * i + 1][1] - 0, 2)));  //output parity codeword = 1  which is mapped to (-1,0)
+            }
+        }
+
+
+    }
+    //interleaving the probability of the message bit for the second parity bit
+    if(interleave_flag){
+        for(int i = 0; i < message_length; i++){
+            interleave_Pch_1[i][0] = Pch_1[random_interleaving_pattern[i]][0];
+            interleave_Pch_1[i][1] = Pch_1[random_interleaving_pattern[i]][1];
+        }
+        for(int i = 0; i < message_length; i++){
+            Pch_1[i][0] = interleave_Pch_1[i][0];
+            Pch_1[i][1] = interleave_Pch_1[i][1];
+        }
+    }
+
+    //calculate the gamma for each state
+    for(int i = 1;i < message_length; i++){
+        // 0 is mapped to (1,0) and 1 is mapped tp (-1,0)
+        gamma_pie_00[i] = priori_prob[i][0] * Pch_1[i][0] * Pch_2[i][0]; //register1 = 0, register2 = 0 -> register1 = 0, register2 = 0  while input = 0,  output = {0, 0}
+        gamma_pie_02[i] = priori_prob[i][1] * Pch_1[i][1] * Pch_2[i][1]; //register1 = 0, register2 = 0 -> register1 = 1, register2 = 0  while input = 1,  output = {1, 1}
+        gamma_pie_10[i] = priori_prob[i][1] * Pch_1[i][1] * Pch_2[i][0]; //register1 = 0, register2 = 1 -> register1 = 0, register2 = 0  while input = 1,  output = {1, 0}
+        gamma_pie_12[i] = priori_prob[i][0] * Pch_1[i][0] * Pch_2[i][1]; //register1 = 0, register2 = 1 -> register1 = 1, register2 = 0  while input = 0,  output = {0, 1}
+        gamma_pie_21[i] = priori_prob[i][0] * Pch_1[i][0] * Pch_2[i][0]; //register1 = 1, register2 = 0 -> register1 = 0, register2 = 1  while input = 0,  output = {0, 0}
+        gamma_pie_23[i] = priori_prob[i][1] * Pch_1[i][1] * Pch_2[i][1]; //register1 = 1, register2 = 0 -> register1 = 1, register2 = 1  while input = 1,  output = {1, 1}
+        gamma_pie_31[i] = priori_prob[i][1] * Pch_1[i][1] * Pch_2[i][0]; //register1 = 1, register2 = 1 -> register1 = 0, register2 = 1  while input = 1,  output = {1, 0}
+        gamma_pie_33[i] = priori_prob[i][0] * Pch_1[i][0] * Pch_2[i][1]; //register1 = 1, register2 = 1 -> register1 = 1, register2 = 1  while input = 0,  output = {0, 1}
+    }
+
+    //calculate the alpha
+    for(int i = 1; i < message_length; i++){
+        alpha[i][0] = alpha[i - 1][0] * gamma_pie_00[i] + alpha[i - 1][1] * gamma_pie_10[i];
+        alpha[i][1] = alpha[i - 1][2] * gamma_pie_21[i] + alpha[i - 1][3] * gamma_pie_31[i];
+        alpha[i][2] = alpha[i - 1][0] * gamma_pie_02[i] + alpha[i - 1][1] * gamma_pie_12[i];
+        alpha[i][3] = alpha[i - 1][2] * gamma_pie_23[i] + alpha[i - 1][3] * gamma_pie_33[i];
+        //normalize
+        double alpha_sum = alpha[i][0] + alpha[i][1] + alpha[i][2] + alpha[i][3];
+        alpha[i][0] /= alpha_sum;
+        alpha[i][1] /= alpha_sum;
+        alpha[i][2] /= alpha_sum;
+        alpha[i][3] /= alpha_sum;
+    }
+
+    //calculate the beta
+    for(int i = message_length - 2; i >= 0; i--){
+        beta[i][0] = beta[i + 1][0] * gamma_pie_00[i + 1] + beta[i + 1][2] * gamma_pie_02[i + 1];
+        beta[i][1] = beta[i + 1][0] * gamma_pie_10[i + 1] + beta[i + 1][2] * gamma_pie_12[i + 1];
+        beta[i][2] = beta[i + 1][1] * gamma_pie_21[i + 1] + beta[i + 1][3] * gamma_pie_23[i + 1];
+        beta[i][3] = beta[i + 1][1] * gamma_pie_31[i + 1] + beta[i + 1][3] * gamma_pie_33[i + 1];
+        //normalize
+        double beta_sum = beta[i][0] + beta[i][1] + beta[i][2] + beta[i][3];
+        beta[i][0] /= beta_sum;
+        beta[i][1] /= beta_sum;
+        beta[i][2] /= beta_sum;
+        beta[i][3] /= beta_sum;
+    }
+
+    //calculate the posteriori probability
+    for(int i = 0; i < message_length; i++){
+        //posteriori_prob = sigma {alpha * gamma * beta}
+        posteriori_prob[i][0] = alpha[i][0] * gamma_pie_00[i] * beta[i][0] + alpha[i][1] * gamma_pie_12[i] * beta[i][2] + alpha[i][2] * gamma_pie_21[i] * beta[i][1] + alpha[i][3] * gamma_pie_33[i] * beta[i][3];
+        posteriori_prob[i][1] = alpha[i][0] * gamma_pie_02[i] * beta[i][2] + alpha[i][1] * gamma_pie_10[i] * beta[i][0] + alpha[i][2] * gamma_pie_23[i] * beta[i][3] + alpha[i][3] * gamma_pie_31[i] * beta[i][1];
+        //normalize
+        double posteriori_prob_sum = posteriori_prob[i][0] + posteriori_prob[i][1];
+        posteriori_prob[i][0] /= posteriori_prob_sum;
+        posteriori_prob[i][1] /= posteriori_prob_sum;
+    }
+
+    //calculate the extrinsic probability
+    for(int i = 0; i < message_length; i++){
+        //extrinsic_prob = posteriori_prob / priori_prob
+        extrinsic_prob[i][0] = posteriori_prob[i][0] / priori_prob[i][0];
+        extrinsic_prob[i][1] = posteriori_prob[i][1] / priori_prob[i][1];
+        //normalize
+        double extrinsic_prob_sum = extrinsic_prob[i][0] + extrinsic_prob[i][1];
+        extrinsic_prob[i][0] /= extrinsic_prob_sum;
+        extrinsic_prob[i][1] /= extrinsic_prob_sum;
+    }
+}
+
+
+void turbo_decoder(float Snr_dB){
+    double **Priori_prob = calloc(message_length, sizeof(double *));
+    double **Posteriori_prob = calloc(message_length, sizeof(double *));
+    double **Extrinsic_prob = calloc(message_length, sizeof(double *));
+    double **Posteriori_prob_final = calloc(message_length, sizeof(double *));
+    for(int i = 0; i < message_length; i++){
+        Priori_prob[i] = calloc(2, sizeof(double));
+        Posteriori_prob[i] = calloc(2, sizeof(double));
+        Extrinsic_prob[i] = calloc(2, sizeof(double));
+        Posteriori_prob_final[i] = calloc(2, sizeof(double));
+    }
+    //initialize the priori probability
+    for(int i = 0; i< message_length; i++){
+        Priori_prob[i][0] = 0.500;
+        Priori_prob[i][1] = 0.500;
+    }
+    //turbo decoding
+    for (int i = 0; i < num_of_iteration; i++)
+    {
+        BCJR_decoder_for_turbo(Snr_dB, Priori_prob, Posteriori_prob, Extrinsic_prob, puncture_flag, 0);
+        //interleaving the probabilities for the BCJR(2)
+        for(int j = 0; j < message_length; j++){
+            Priori_prob[j][0] = Extrinsic_prob[random_interleaving_pattern[j]][0];
+            Priori_prob[j][1] = Extrinsic_prob[random_interleaving_pattern[j]][1];
+        }
+
+        BCJR_decoder_for_turbo(Snr_dB, Priori_prob, Posteriori_prob, Extrinsic_prob, puncture_flag, 1);
+        //inverse interleaving the probabilities for the BCJR(1)
+        for(int j = 0; j < message_length; j++){
+            Priori_prob[random_interleaving_pattern[j]][0] = Extrinsic_prob[j][0];
+            Priori_prob[random_interleaving_pattern[j]][1] = Extrinsic_prob[j][1];
+        }
+    }
+    //inverse the posteriori to get the final posteriori probability
+    for(int i = 0; i < message_length; i++){
+        Posteriori_prob_final[random_interleaving_pattern[i]][0] = Posteriori_prob[i][0];
+        Posteriori_prob_final[random_interleaving_pattern[i]][1] = Posteriori_prob[i][1];
+    }
+    //compare the posteriori probability to get the decoded message
+    for(int i = 0; i < message_length; i++){
+        if(Posteriori_prob_final[i][0] > Posteriori_prob_final[i][1]){
+            de_message[i] = 0;
+        }
+        else{
+            de_message[i] = 1;
+        }
+    }
+    //free the memory
+    for(int i = 0; i < message_length; i++){
+        free(Priori_prob[i]);
+        free(Posteriori_prob[i]);
+        free(Extrinsic_prob[i]);
+        free(Posteriori_prob_final[i]);
+    }
+    free(Priori_prob);
+    free(Posteriori_prob);
+    free(Extrinsic_prob);
+    free(Posteriori_prob_final);
 }
