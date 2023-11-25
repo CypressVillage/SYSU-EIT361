@@ -14,13 +14,14 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 // #define  _CRT_SECURE_NO_WARNINGS // vs取消scanf报错
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <math.h>
 #include "utils.h"
 
-#define message_length 500				   // the length of message
+#define message_length 10000				   // the length of message
 #define codeword_length message_length * 2 // the length of codeword
-DECODE_METHOD decode_method = TURBO;
+DECODE_METHOD decode_method = VITERBI_SOFT;
 
 
 void statetable();
@@ -83,8 +84,35 @@ int *turbo_codeword;
 int **turbo_state_table;
 int num_of_iteration = 1; // the number of iteration for turbo decoder
 
-int main()
+int main(int argc, char *argv[])
 {
+	// 译码模式可以传参
+	if (argc > 1)
+	{
+		if (strcmp(argv[1], "turbo") == 0)
+		{
+			decode_method = TURBO;
+		}
+		else if (strcmp(argv[1], "viterbi_hard") == 0)
+		{
+			decode_method = VITERBI_HARD;
+		}
+		else if (strcmp(argv[1], "viterbi_soft") == 0)
+		{
+			decode_method = VITERBI_SOFT;
+		}
+		else if (strcmp(argv[1], "bcjr") == 0)
+		{
+			decode_method = BCJR;
+		}
+		else
+		{
+			printf("Error: unknown decode method\n");
+			exit(1);
+		}
+		printf("Decode method: %s\n", argv[1]);
+	}
+
 	code_rate = (float)message_length / (float)codeword_length;
 	Parameter = get_essential_params(7, 5, 8);
 	reg_num = Parameter->reg_num; // the number of the register of encoder structure
@@ -120,7 +148,7 @@ int main()
 	start = -5, finish = 5; // 起始和结束的SNR，浮点数，单位为dB
 	float SNR_step = 1;		// SNR步长
 	seq_num = 20;			// 仿真次数
-	fp = fopen("data.txt", "w");
+	fp = fopen("assets/data.txt", "w");
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
