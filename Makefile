@@ -6,11 +6,11 @@ LDFLAGS += -lm
 
 .PHONY: debug
 debug:
-	$(CC) $(CFLAGS) $(LDFLAGS) -Og -fsanitize=address -o $(TARGET_EXEC) $(SRCS)
+	$(CC) -Og -fsanitize=address -o $(TARGET_EXEC) $(SRCS) $(CFLAGS) $(LDFLAGS)
 
 .PHONY: release
 release:
-	$(CC) $(CFLAGS) $(LDFLAGS) -O2 -o $(TARGET_EXEC) $(SRCS)
+	$(CC) -O2 -o $(TARGET_EXEC) $(SRCS) $(CFLAGS) $(LDFLAGS)
 
 .PHONY: clean
 clean:
