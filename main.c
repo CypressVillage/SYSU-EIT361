@@ -18,19 +18,19 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #include <math.h>
 #include "utils.h"
 
-#define DEBUG_MODE 0
+#define DEBUG_MODE 1
 #define DEBUG_STATE_TABLE 0
 #define DEBUG_TRELLIS 0
 #define DEBUG_VITERBI 0
 
-#define SNR_START -5
+#define SNR_START 5
 #define SNR_FINISH 5
 #define SNR_STEP 1
-#define SEQ_NUM 20
+#define SEQ_NUM 1
 
 #define message_length 20				   // the length of message
 #define codeword_length message_length * 2 // the length of codeword
-DECODE_METHOD decode_method = VITERBI_HARD;
+DECODE_METHOD decode_method = TURBO;
 
 void statetable();
 void trellis();
@@ -631,8 +631,14 @@ void decoder_bcjr()
 {
 	// 输入rx_symbol,输出de_message
 	double squared_sigma = N0 / 2;
-	double alpha[message_length][4];
-	double beta[message_length][4];
+	double **alpha = calloc(message_length*4, sizeof(double));
+	double **beta = calloc(message_length*4, sizeof(double));
+	for (int i = 0; i < message_length*4; i++)
+	{
+		alpha[i] = calloc(4, sizeof(double));
+		beta[i] = calloc(4, sizeof(double));
+	}
+	
 	double gamma_pie_00;
 	double gamma_pie_02;
 	double gamma_pie_10;
@@ -723,6 +729,14 @@ void decoder_bcjr()
 		else
 			de_message[i] = 1;
 	}
+
+	for (int i = 0; i < message_length * 4; i++)
+	{
+		free(alpha[i]);
+		free(beta[i]);
+	}
+	free(alpha);
+	free(beta);
 }
 
 void decoder(float SNR)
@@ -1126,6 +1140,29 @@ void turbo_decoder(float Snr_dB)
 			Priori_prob[j][0] = Extrinsic_prob[random_interleaving_pattern[j]][0];
 			Priori_prob[j][1] = Extrinsic_prob[random_interleaving_pattern[j]][1];
 		}
+
+		if (PRINT_TURBO_CODEWORD)
+		{
+			printf("[DEBUG]: Priori_prob\n");
+			for (int i = 0; i < message_length; i++)
+			{
+				printf("%lf %lf\n", Priori_prob[i][0], Priori_prob[i][1]);
+			}
+			printf("\n");
+			printf("[DEBUG]: Posteriori_prob\n");
+			for (int i = 0; i < message_length; i++)
+			{
+				printf("%lf %lf\n", Posteriori_prob[i][0], Posteriori_prob[i][1]);
+			}
+			printf("\n");
+			printf("[DEBUG]: Extrinsic_prob\n");
+			for (int i = 0; i < message_length; i++)
+			{
+				printf("%lf %lf\n", Extrinsic_prob[i][0], Extrinsic_prob[i][1]);
+			}
+			printf("\n");
+		}
+		
 
 		BCJR_decoder_for_turbo(Snr_dB, Priori_prob, Posteriori_prob, Extrinsic_prob, puncture_flag, 1);
 		// inverse interleaving the probabilities for the BCJR(1)
