@@ -19,7 +19,14 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #include <math.h>
 #include "utils.h"
 
-#define message_length 10000				   // the length of message
+#define DEBUG_MODE 0
+
+#define SNR_START -5
+#define SNR_FINISH 5
+#define SNR_STEP 1
+#define SEQ_NUM 20
+
+#define message_length 100000			   // the length of message
 #define codeword_length message_length * 2 // the length of codeword
 DECODE_METHOD decode_method = VITERBI_SOFT;
 
@@ -556,6 +563,7 @@ void decoder_viterbi(int MODE)
 					}
 					int codeword_output = array2int(codeword_section, Parameter->nout);
 					cost = VNodeTable[preij].min_cost + count_ones(TLineTable[preLine->id].output ^ codeword_output);
+					free(codeword_section);
 				}
 				else if (MODE == VITERBI_SOFT)
 				{
@@ -572,6 +580,7 @@ void decoder_viterbi(int MODE)
 						cost += pow(rx_symbol[(col - 1) * Parameter->nout + n][0] - (double)line_output[n], 2); // x
 						cost += pow(rx_symbol[(col - 1) * Parameter->nout + n][1] - 0, 2);						// y
 					}
+					free(line_output);
 				}
 
 				if (cost < VNodeTable[ij].min_cost)
@@ -608,6 +617,7 @@ void decoder_viterbi(int MODE)
 		}
 		printf("\n");
 	}
+	free(VNodeTable);
 }
 
 void decoder_bcjr()

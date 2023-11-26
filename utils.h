@@ -3,7 +3,6 @@
 
 #define BIN 0
 #define DEC 1
-#define DEBUG_MODE 0
 
 typedef enum
 {

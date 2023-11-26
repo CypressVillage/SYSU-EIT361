@@ -108,8 +108,12 @@ PARAMETER *get_essential_params(int a, int b, int N)
             params->trans_mat[single_section_width + i * section + j] = section_a[j];
             params->trans_mat[single_section_width + i * section + j + params->reg_num + 1] = section_b[j];
         }
+        free(section_a);
+        free(section_b);
     }
 
+    free(a_declist);
+    free(b_declist);
     return params;
 }
 
