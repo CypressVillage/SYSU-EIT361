@@ -23,6 +23,9 @@ for method in decode_methods:
         for line in f.readlines():
             snr.append(float(line.split()[0]))
             ber.append(float(line.split()[1]))
+    # 如果存在data_method.txt文件，则删除
+    if os.path.exists('assets/data_' + method + '.txt'):
+        os.remove('assets/data_' + method + '.txt')
     os.rename('assets/data.txt', 'assets/data_' + method + '.txt')
 
     # 绘制SNR-BER曲线
