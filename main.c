@@ -19,13 +19,16 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #include "utils.h"
 
 #define DEBUG_MODE 0
+#define DEBUG_STATE_TABLE 0
+#define DEBUG_TRELLIS 0
+#define DEBUG_VITERBI 0
 
 #define SNR_START -5
 #define SNR_FINISH 5
 #define SNR_STEP 1
 #define SEQ_NUM 20
 
-#define message_length 100000			   // the length of message
+#define message_length 20				   // the length of message
 #define codeword_length message_length * 2 // the length of codeword
 DECODE_METHOD decode_method = VITERBI_HARD;
 
@@ -238,6 +241,12 @@ int main(int argc, char *argv[])
 				{
 					printf("%d ", codeword[i]);
 				}
+				printf("\n");
+				printf("译码序列:");
+				for (int i = 0; i < message_length; i++)
+				{
+					printf("%d ", de_message[i]);
+				}
 				printf("\n\n");
 			}
 		}
@@ -304,7 +313,7 @@ void statetable()
 	}
 
 	// print state_table
-	if (DEBUG_MODE)
+	if (DEBUG_MODE && DEBUG_STATE_TABLE)
 	{
 		printf("[DEBUG]: state_table\n");
 		for (int i = 0; i < state_num * input_states; i++)
@@ -346,7 +355,7 @@ void trellis()
 	}
 
 	// print trellis
-	if (DEBUG_MODE)
+	if (DEBUG_MODE && DEBUG_TRELLIS)
 	{
 		printf("[DEBUG]: trellis\n");
 		for (int i = 0; i < Tlinenum; i++)
@@ -460,7 +469,7 @@ void demodulation()
 	}
 
 	// print re_codeword
-	if (DEBUG_MODE)
+	if (DEBUG_MODE && DEBUG_VITERBI)
 	{
 		printf("[DEBUG]: re_codeword\n");
 		for (int i = 0; i < codeword_length; i++)
@@ -593,14 +602,14 @@ void decoder_viterbi(int MODE)
 				decode_output = VNodeTable[ij].min_cost_path;
 			}
 		}
-		if (DEBUG_MODE)
+		if (DEBUG_MODE && DEBUG_VITERBI)
 		{
 			printf("mincost:%.2f output:%d\n", col_mincost, decode_output);
 		}
 		de_message[col - 1] = decode_output;
 	}
 
-	if (DEBUG_MODE)
+	if (DEBUG_MODE && DEBUG_VITERBI)
 	{
 		printf("[DEBUG]: VNodeTable:(state,active,cost,path)\n");
 		for (int i = 0; i < state_num; i++)
@@ -872,7 +881,7 @@ void modulation_for_turbo()
 		Turbo_Tx_symbol[i] = calloc(2, sizeof(double));
 	}
 	// 0 is mapped to (1,0) and 1 is mapped tp (-1,0)
-	for (int i = 0; i < codeword_length; i++)
+	for (int i = 0; i < turbo_codeword_length; i++)
 	{
 		Turbo_Tx_symbol[i][0] = -1 * (2 * turbo_codeword[i] - 1);
 		Turbo_Tx_symbol[i][1] = 0;
