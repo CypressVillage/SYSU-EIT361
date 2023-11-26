@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 	// scanf("%d", &seq_num);
 	start = -5, finish = 5; // 起始和结束的SNR，浮点数，单位为dB
 	float SNR_step = 1;		// SNR步长
-	seq_num = 20;			// 仿真次数
+	seq_num = 50;			// 仿真次数
 	fp = fopen("assets/data.txt", "w");
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
@@ -498,34 +498,26 @@ void decoder_viterbi(int MODE)
 	{
 		for (int row = 0; row < state_num; row++)
 		{
-			int is_parent_active = 0;
 			// 前向检查是否有连接到自己的节点
 			for (int nout = 0; nout < Parameter->nout; nout++)
 			{
 				int preid = TNodeTable[row].LeftLines[nout].BeginNode->data;
 				if (VNodeTable[preid * Col + col - 1].active)
 				{
-					is_parent_active = 1;
+					VNodeTable[row * Col + col].active = 1;
+					break;
 				}
-			}
-			if (is_parent_active)
-			{
-				VNodeTable[row * Col + col].active = 1;
 			}
 			// 后向检查是否有连接到自己的节点
 			int colbehind = Col - col - 1;
-			int is_child_active = 0;
 			for (int nout = 0; nout < Parameter->nout; nout++)
 			{
 				int nextid = TNodeTable[row].RightLines[nout].EndNode->data;
 				if (VNodeTable[nextid * Col + colbehind + 1].active)
 				{
-					is_child_active = 1;
+					VNodeTable[row * Col + colbehind].active = 1;
+					break;
 				}
-			}
-			if (is_child_active)
-			{
-				VNodeTable[row * Col + colbehind].active = 1;
 			}
 		}
 	}
