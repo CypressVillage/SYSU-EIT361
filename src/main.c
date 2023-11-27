@@ -28,7 +28,7 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define SNR_STEP 1
 #define SEQ_NUM 100
 
-#define message_length 500				   // the length of message
+#define message_length 5				   // the length of message
 #define codeword_length (message_length * 2) // the length of codeword
 DECODE_METHOD decode_method = TURBO;
 
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 	trellis();
 
 	// random seed
-	srand(0/(int)time(0));
+	srand((int)time(0));
 
 	// //input the SNR and frame number
 	// printf("\nEnter start SNR: ");

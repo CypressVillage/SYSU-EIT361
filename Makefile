@@ -1,6 +1,6 @@
 TARGET_EXEC := main
 
-SRCS := main.c utils.c
+SRCS := src/main.c src/utils.c
 
 LDFLAGS += -lm
 
