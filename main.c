@@ -120,8 +120,8 @@ int main(int argc, char *argv[])
 		printf("Decode method: %s\n", argv[1]);
 	}
 
-	// TODO: coderate = (float)(message_length - reg_num) / codeword_length
 	code_rate = (float)message_length / (float)codeword_length;
+	code_rate_real = (float)(message_length - reg_num) / codeword_length;
 	Parameter = get_essential_params(7, 5, 8);
 	reg_num = Parameter->reg_num; // the number of the register of encoder structure
 	state_num = pow(2, reg_num);  // the number of the state of encoder structure
@@ -156,12 +156,12 @@ int main(int argc, char *argv[])
 	start = SNR_START, finish = SNR_FINISH; // 起始和结束的SNR，浮点数，单位为dB
 	float SNR_step = SNR_STEP;				// SNR步长
 	seq_num = SEQ_NUM;						// 仿真次数
-	fp = fopen("assets/data.txt", "w");
+	fp = fopen("data.txt", "w");
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
 		// channel noise
-		N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0);
+		N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0); // BPSK调制，码率为1，所以这里是1/code_rate
 		sgm = sqrt(N0 / 2);
 
 		bit_error = 0;
@@ -240,6 +240,24 @@ int main(int argc, char *argv[])
 				for (int i = 0; i < codeword_length; i++)
 				{
 					printf("%d ", codeword[i]);
+				}
+				printf("\n");
+				printf("接收序列:");
+				for (int i = 0; i < codeword_length; i++)
+				{
+					printf("%d ", re_codeword[i]);
+				}
+				printf("\n");
+				printf("发送符号:");
+				for (int i = 0; i < codeword_length; i++)
+				{
+					printf("(%f,%f) ", tx_symbol[i][0], tx_symbol[i][1]);
+				}
+				printf("\n");
+				printf("接收符号:");
+				for (int i = 0; i < codeword_length; i++)
+				{
+					printf("(%f,%f) ", rx_symbol[i][0], rx_symbol[i][1]);
 				}
 				printf("\n");
 				printf("译码序列:");
@@ -593,20 +611,37 @@ void decoder_viterbi(int MODE)
 				if (cost < VNodeTable[ij].min_cost)
 				{
 					VNodeTable[ij].min_cost = cost;
-					VNodeTable[ij].min_cost_path = TNodeTable[row].LeftLines[nout].input;
+					VNodeTable[ij].min_cost_path = TNodeTable[row].LeftLines[nout].id;
 				}
 			}
-			if (VNodeTable[ij].min_cost < col_mincost)
-			{
-				col_mincost = VNodeTable[ij].min_cost;
-				decode_output = VNodeTable[ij].min_cost_path;
-			}
+			// if (VNodeTable[ij].min_cost < col_mincost)
+			// {
+			// 	col_mincost = VNodeTable[ij].min_cost;
+			// 	decode_output = VNodeTable[ij].min_cost_path;
+			// }
 		}
 		if (DEBUG_MODE && DEBUG_VITERBI)
 		{
 			printf("mincost:%.2f output:%d\n", col_mincost, decode_output);
 		}
-		de_message[col - 1] = decode_output;
+		// de_message[col - 1] = decode_output;
+	}
+
+	// 从后往前遍历
+	VNODE *node = &VNodeTable[Col - 1]; // 最后一个节点
+	for (int col = Col-1; col > 0; col--)
+	{
+		for (int inode = 0; inode < Parameter->nout; inode++)
+		{
+			TLine *line = &TNodeTable[node->state].LeftLines[inode];
+			if (line->id == node->min_cost_path)
+			{
+				de_message[col - 1] = line->input;
+				int leftid = line->BeginNode->data;
+				node = &VNodeTable[leftid * Col + col - 1];
+				break;
+			}
+		}
 	}
 
 	if (DEBUG_MODE && DEBUG_VITERBI)
@@ -618,7 +653,7 @@ void decoder_viterbi(int MODE)
 			{
 				printf("(%.2f %.2f) ",
 					   VNodeTable[i * Col + j].min_cost,
-					   VNodeTable[i * Col + j].min_cost_path + 1);
+					   VNodeTable[i * Col + j].min_cost_path);
 			}
 			printf("\n");
 		}
@@ -631,14 +666,14 @@ void decoder_bcjr()
 {
 	// 输入rx_symbol,输出de_message
 	double squared_sigma = N0 / 2;
-	double **alpha = calloc(message_length*4, sizeof(double));
-	double **beta = calloc(message_length*4, sizeof(double));
-	for (int i = 0; i < message_length*4; i++)
+	double **alpha = calloc(message_length * 4, sizeof(double));
+	double **beta = calloc(message_length * 4, sizeof(double));
+	for (int i = 0; i < message_length * 4; i++)
 	{
 		alpha[i] = calloc(4, sizeof(double));
 		beta[i] = calloc(4, sizeof(double));
 	}
-	
+
 	double gamma_pie_00;
 	double gamma_pie_02;
 	double gamma_pie_10;

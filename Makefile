@@ -14,4 +14,4 @@ release:
 
 .PHONY: clean
 clean:
-	rm main
+	rm main data.txt
