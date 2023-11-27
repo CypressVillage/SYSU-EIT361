@@ -18,18 +18,18 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #include <math.h>
 #include "utils.h"
 
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 #define DEBUG_STATE_TABLE 0
 #define DEBUG_TRELLIS 0
-#define DEBUG_VITERBI 0
+#define DEBUG_VITERBI 1
 
-#define SNR_START 5
-#define SNR_FINISH 5
+#define SNR_START 0
+#define SNR_FINISH 10
 #define SNR_STEP 1
-#define SEQ_NUM 1
+#define SEQ_NUM 100
 
-#define message_length 20				   // the length of message
-#define codeword_length message_length * 2 // the length of codeword
+#define message_length 500				   // the length of message
+#define codeword_length (message_length * 2) // the length of codeword
 DECODE_METHOD decode_method = TURBO;
 
 void statetable();
@@ -51,7 +51,8 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 void modulation_for_turbo(); // this function is used to modulate the codeword in turbo encoder because the code rate in turbo may change if puncture_flag = 1
 void channel_for_turbo();
 
-float code_rate; // 码率
+float code_rate;	  // 码率
+float code_rate_real; // 真实码率
 
 // channel coefficient
 #define pi 3.1415926
@@ -90,6 +91,7 @@ double **Turbo_Rx_symbol;						// the received symbols for turbo
 int *turbo_codeword;
 int **turbo_state_table;
 int num_of_iteration = 1; // the number of iteration for turbo decoder
+double sgm_for_turbo;	 // the noise variance for turbo
 
 int main(int argc, char *argv[])
 {
@@ -144,7 +146,7 @@ int main(int argc, char *argv[])
 	trellis();
 
 	// random seed
-	srand((int)time(0));
+	srand(0/(int)time(0));
 
 	// //input the SNR and frame number
 	// printf("\nEnter start SNR: ");
@@ -163,6 +165,14 @@ int main(int argc, char *argv[])
 		// channel noise
 		N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0); // BPSK调制，码率为1，所以这里是1/code_rate
 		sgm = sqrt(N0 / 2);
+
+		// turbo channel noise
+		if(puncture_flag){
+            sgm_for_turbo = sgm; // if puncture_flag = 1, code rate = 1/2
+        }
+        else{
+            sgm_for_turbo = sqrt( ((1.0 * 3) / pow(10.0, (float)(SNR) / 10.0)) / 2 ); // if puncture_flag = 0, code rate = 1/3
+        }
 
 		bit_error = 0;
 
@@ -696,16 +706,16 @@ void decoder_bcjr()
 	{
 		double ra1 = rx_symbol[2 * i - 2][0];
 		double rb1 = rx_symbol[2 * i - 1][0];
-		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
-		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
-		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
+		gamma_pie_00 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
+		gamma_pie_02 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
+		gamma_pie_10 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
 
-		gamma_pie_12 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
-		gamma_pie_21 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_12 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
+		gamma_pie_21 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 
-		gamma_pie_23 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
-		gamma_pie_31 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
-		gamma_pie_33 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_23 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
+		gamma_pie_31 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
+		gamma_pie_33 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 		alpha[i][0] = alpha[i - 1][0] * gamma_pie_00 + alpha[i - 1][1] * gamma_pie_10;
 		alpha[i][1] = alpha[i - 1][2] * gamma_pie_21 + alpha[i - 1][3] * gamma_pie_31;
 		alpha[i][2] = alpha[i - 1][0] * gamma_pie_02 + alpha[i - 1][1] * gamma_pie_12;
@@ -720,16 +730,16 @@ void decoder_bcjr()
 	{
 		double ra1 = rx_symbol[2 * i + 2][0];
 		double rb1 = rx_symbol[2 * i + 3][0];
-		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
-		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
-		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
+		gamma_pie_00 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
+		gamma_pie_02 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
+		gamma_pie_10 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
 
-		gamma_pie_12 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
-		gamma_pie_21 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_12 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
+		gamma_pie_21 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 
-		gamma_pie_23 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
-		gamma_pie_31 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
-		gamma_pie_33 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_23 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
+		gamma_pie_31 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
+		gamma_pie_33 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 		beta[i][0] = beta[i + 1][0] * gamma_pie_00 + beta[i + 1][2] * gamma_pie_02;
 		beta[i][1] = beta[i + 1][0] * gamma_pie_10 + beta[i + 1][2] * gamma_pie_12;
 		beta[i][2] = beta[i + 1][1] * gamma_pie_21 + beta[i + 1][3] * gamma_pie_23;
@@ -744,16 +754,16 @@ void decoder_bcjr()
 	{
 		double ra1 = rx_symbol[2 * i][0];
 		double rb1 = rx_symbol[2 * i + 1][0];
-		gamma_pie_00 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
-		gamma_pie_02 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
-		gamma_pie_10 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
+		gamma_pie_00 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1//看卷积码寄存器状态
+		gamma_pie_02 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1, -1
+		gamma_pie_10 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 + 1), 2))); // v = 11, -1,-1
 
-		gamma_pie_12 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
-		gamma_pie_21 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_12 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 - 1), 2))); // v = 00, +1, +1
+		gamma_pie_21 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 
-		gamma_pie_23 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
-		gamma_pie_31 = exp(-1 / (2 * squared_sigma) * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
-		gamma_pie_33 = exp(-1 / (2 * squared_sigma) * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
+		gamma_pie_23 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1,-1
+		gamma_pie_31 = exp(-1 / N0 * (pow((ra1 - 1), 2) + pow((rb1 + 1), 2))); // v = 01, +1, -1
+		gamma_pie_33 = exp(-1 / N0 * (pow((ra1 + 1), 2) + pow((rb1 - 1), 2))); // v = 10, -1, +1
 		p0 = alpha[i][0] * gamma_pie_00 * beta[i][0] + alpha[i][1] * gamma_pie_10 * beta[i][0] + alpha[i][2] * gamma_pie_21 * beta[i][1] + alpha[i][3] * gamma_pie_31 * beta[i][1];
 		p1 = alpha[i][0] * gamma_pie_02 * beta[i][2] + alpha[i][1] * gamma_pie_12 * beta[i][2] + alpha[i][2] * gamma_pie_23 * beta[i][3] + alpha[i][3] * gamma_pie_33 * beta[i][3];
 		double p_sum = p0 + p1;
@@ -832,6 +842,11 @@ void shuffle(int *array, int length_of_array)
 		array[i] = array[j];
 		array[j] = temp;
 	}
+	// array[0] = 0;
+	// array[1] = 1;
+	// array[2] = 2;
+	// array[3] = 3;
+	// array[4] = 4;
 }
 
 void puncture(int *codeword_array, int len_of_message_array)
@@ -849,6 +864,12 @@ void puncture(int *codeword_array, int len_of_message_array)
 
 void turbo_encoder(int message_len)
 {
+	// message[0] = 1;
+	// message[1] = 1;
+	// message[2] = 1;
+	// message[3] = 0;
+	// message[4] = 0;
+
 	int First_Register = 0;
 	int Second_Register = 0;
 	int table_row_index;
@@ -955,7 +976,7 @@ void channel_for_turbo()
 			u = (float)rand() / (float)RAND_MAX;
 			if (u == 1.0)
 				u = 0.999999;
-			r = sgm * sqrt(2.0 * log(1.0 / (1.0 - u)));
+			r = sgm_for_turbo * sqrt(2.0 * log(1.0 / (1.0 - u)));
 
 			u = (float)rand() / (float)RAND_MAX;
 			if (u == 1.0)
@@ -976,8 +997,9 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 	 * @param posteriori_prob the posteriori probability of the message, posteriori_prob[i][0] is the probability of the message is 0, posteriori_prob[i][1] is the probability of the message is 1
 	 * @param extrinsic_prob the extrinsic probability of the message, extrinsic_prob[0] is the probability of the message is 0, extrinsic_prob[1] is the probability of the message is 1
 	 */
-	double turbo_code_rate = message_length / turbo_codeword_length;
-	N0 = 1 / (2 * turbo_code_rate * pow(10, SNR_dB / 10.0));
+	double turbo_code_rate = (double)message_length / turbo_codeword_length;
+    //N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0);
+	N0 = (1.0 / turbo_code_rate) / pow(10.0, SNR_dB / 10.0);
 	sgm = sqrt(N0 / 2);
 	double alpha[message_length][4];
 	double beta[message_length][4];
@@ -999,12 +1021,16 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 	alpha[0][1] = 0;				 // the probability of begin at the state  01
 	alpha[0][2] = 0;				 // the probability of begin at the state  10
 	alpha[0][3] = 0;				 // the probability of begin at the state  11
-	beta[message_length - 1][0] = 1; // the probability of ending at the state 00
-	beta[message_length - 1][1] = 0; // the probability of ending at the state 01
-	beta[message_length - 1][2] = 0; // the probability of ending at the state 10
-	beta[message_length - 1][3] = 0; // the probability of ending at the state 11
+//	beta[message_length - 1][0] = 0; // the probability of ending at the state 00
+//	beta[message_length - 1][1] = 1; // the probability of ending at the state 01
+//	beta[message_length - 1][2] = 0; // the probability of ending at the state 10
+//	beta[message_length - 1][3] = 0; // the probability of ending at the state 11
+    beta[message_length - 1][0] = 0.25; // the probability of ending at the state 00
+    beta[message_length - 1][1] = 0.25; // the probability of ending at the state 01
+    beta[message_length - 1][2] = 0.25; // the probability of ending at the state 10
+    beta[message_length - 1][3] = 0.25; // the probability of ending at the state 11
 	// calculate the Pch for each state
-	for (int i = 1; i < message_length; i++)
+	for (int i = 0; i < message_length; i++)
 	{
 		// 0 is mapped to (1,0) and 1 is mapped tp (-1,0)
 		if (puncture_flag)
@@ -1078,7 +1104,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 	}
 
 	// calculate the gamma for each state
-	for (int i = 1; i < message_length; i++)
+	for (int i = 0; i < message_length; i++)
 	{
 		// 0 is mapped to (1,0) and 1 is mapped tp (-1,0)
 		gamma_pie_00[i] = priori_prob[i][0] * Pch_1[i][0] * Pch_2[i][0]; // register1 = 0, register2 = 0 -> register1 = 0, register2 = 0  while input = 0,  output = {0, 0}
@@ -1094,10 +1120,10 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 	// calculate the alpha
 	for (int i = 1; i < message_length; i++)
 	{
-		alpha[i][0] = alpha[i - 1][0] * gamma_pie_00[i] + alpha[i - 1][1] * gamma_pie_10[i];
-		alpha[i][1] = alpha[i - 1][2] * gamma_pie_21[i] + alpha[i - 1][3] * gamma_pie_31[i];
-		alpha[i][2] = alpha[i - 1][0] * gamma_pie_02[i] + alpha[i - 1][1] * gamma_pie_12[i];
-		alpha[i][3] = alpha[i - 1][2] * gamma_pie_23[i] + alpha[i - 1][3] * gamma_pie_33[i];
+		alpha[i][0] = alpha[i - 1][0] * gamma_pie_00[i-1] + alpha[i - 1][1] * gamma_pie_10[i-1];
+		alpha[i][1] = alpha[i - 1][2] * gamma_pie_21[i-1] + alpha[i - 1][3] * gamma_pie_31[i-1];
+		alpha[i][2] = alpha[i - 1][0] * gamma_pie_02[i-1] + alpha[i - 1][1] * gamma_pie_12[i-1];
+		alpha[i][3] = alpha[i - 1][2] * gamma_pie_23[i-1] + alpha[i - 1][3] * gamma_pie_33[i-1];
 		// normalize
 		double alpha_sum = alpha[i][0] + alpha[i][1] + alpha[i][2] + alpha[i][3];
 		alpha[i][0] /= alpha_sum;
@@ -1110,9 +1136,13 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 	for (int i = message_length - 2; i >= 0; i--)
 	{
 		beta[i][0] = beta[i + 1][0] * gamma_pie_00[i + 1] + beta[i + 1][2] * gamma_pie_02[i + 1];
-		beta[i][1] = beta[i + 1][0] * gamma_pie_10[i + 1] + beta[i + 1][2] * gamma_pie_12[i + 1];
-		beta[i][2] = beta[i + 1][1] * gamma_pie_21[i + 1] + beta[i + 1][3] * gamma_pie_23[i + 1];
-		beta[i][3] = beta[i + 1][1] * gamma_pie_31[i + 1] + beta[i + 1][3] * gamma_pie_33[i + 1];
+        beta[i][1] = beta[i + 1][0] * gamma_pie_10[i + 1] + beta[i + 1][2] * gamma_pie_12[i + 1];
+        beta[i][2] = beta[i + 1][1] * gamma_pie_21[i + 1] + beta[i + 1][3] * gamma_pie_23[i + 1];
+        beta[i][3] = beta[i + 1][1] * gamma_pie_31[i + 1] + beta[i + 1][3] * gamma_pie_33[i + 1];
+
+//		beta[i][1] = beta[i + 1][0] * gamma_pie_10[i] + beta[i + 1][2] * gamma_pie_12[i];
+//		beta[i][2] = beta[i + 1][1] * gamma_pie_21[i] + beta[i + 1][3] * gamma_pie_23[i];
+//		beta[i][3] = beta[i + 1][1] * gamma_pie_31[i] + beta[i + 1][3] * gamma_pie_33[i];
 		// normalize
 		double beta_sum = beta[i][0] + beta[i][1] + beta[i][2] + beta[i][3];
 		beta[i][0] /= beta_sum;
@@ -1125,7 +1155,9 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 	for (int i = 0; i < message_length; i++)
 	{
 		// posteriori_prob = sigma {alpha * gamma * beta}
+		posteriori_prob[i][0] = 832942.902493;
 		posteriori_prob[i][0] = alpha[i][0] * gamma_pie_00[i] * beta[i][0] + alpha[i][1] * gamma_pie_12[i] * beta[i][2] + alpha[i][2] * gamma_pie_21[i] * beta[i][1] + alpha[i][3] * gamma_pie_33[i] * beta[i][3];
+		double aaaaa = alpha[i][0] * gamma_pie_00[i] * beta[i][0] + alpha[i][1] * gamma_pie_12[i] * beta[i][2] + alpha[i][2] * gamma_pie_21[i] * beta[i][1] + alpha[i][3] * gamma_pie_33[i] * beta[i][3];
 		posteriori_prob[i][1] = alpha[i][0] * gamma_pie_02[i] * beta[i][2] + alpha[i][1] * gamma_pie_10[i] * beta[i][0] + alpha[i][2] * gamma_pie_23[i] * beta[i][3] + alpha[i][3] * gamma_pie_31[i] * beta[i][1];
 		// normalize
 		double posteriori_prob_sum = posteriori_prob[i][0] + posteriori_prob[i][1];
@@ -1162,8 +1194,8 @@ void turbo_decoder(float Snr_dB)
 	// initialize the priori probability
 	for (int i = 0; i < message_length; i++)
 	{
-		Priori_prob[i][0] = 0.500;
-		Priori_prob[i][1] = 0.500;
+		Priori_prob[i][0] = 0.5;
+		Priori_prob[i][1] = 0.5;
 	}
 	// turbo decoding
 	for (int i = 0; i < num_of_iteration; i++)

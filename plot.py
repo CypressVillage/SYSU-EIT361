@@ -6,7 +6,7 @@ decode_methods = [
     'viterbi_hard',
     'viterbi_soft',
     'bcjr',
-    # 'turbo',
+    'turbo',
 ]
 
 # 判断assets文件夹是否存在，不存在则创建
