@@ -10,7 +10,8 @@ debug:
 
 .PHONY: release
 release:
-	$(CC) -O2 -o $(TARGET_EXEC) $(SRCS) $(CFLAGS) $(LDFLAGS)
+	$(CC) -O3 -o $(TARGET_EXEC) $(SRCS) $(CFLAGS) $(LDFLAGS)
+	strip $(TARGET_EXEC)
 
 .PHONY: clean
 clean:
