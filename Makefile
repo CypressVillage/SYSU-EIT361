@@ -1,4 +1,4 @@
-TARGET_EXEC := main
+TARGET_EXEC := build/main
 
 SRCS := src/main.c src/utils.c
 

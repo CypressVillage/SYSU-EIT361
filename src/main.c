@@ -26,7 +26,7 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define SNR_START 0
 #define SNR_FINISH 10
 #define SNR_STEP 1
-#define SEQ_NUM 10
+#define SEQ_NUM 100
 #define ITERATION_TIMES 10
 
 #define message_length 100000				   // the length of message
