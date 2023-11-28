@@ -26,11 +26,11 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define SNR_START 0
 #define SNR_FINISH 10
 #define SNR_STEP 1
-#define SEQ_NUM 100
+#define SEQ_NUM 1
 #define ITERATION_TIMES 10
 
-#define message_length 100000				   // the length of message
-#define codeword_length (message_length * 2) // the length of codeword
+#define message_length 100
+#define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
 void statetable();
@@ -913,6 +913,7 @@ void turbo_encoder(int message_len)
 		puncture(turbo_codeword, message_len);
 		codeword_length_for_turbo = message_len * 2;
 	}
+	free(interleaved_message);
 	// print the codeword
 	if (PRINT_TURBO_CODEWORD)
 	{
@@ -957,6 +958,7 @@ void modulation_for_turbo()
 		Turbo_Tx_symbol[i][0] = -1 * (2 * turbo_codeword[i] - 1);
 		Turbo_Tx_symbol[i][1] = 0;
 	}
+	free(turbo_codeword);
 }
 
 void channel_for_turbo()
@@ -987,6 +989,11 @@ void channel_for_turbo()
 			Turbo_Rx_symbol[i][j] = Turbo_Tx_symbol[i][j] + g;
 		}
 	}
+	for(int i = 0; i < turbo_codeword_length; i++)
+    {
+        free(Turbo_Tx_symbol[i]);
+    }
+    free(Turbo_Tx_symbol);
 }
 
 void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteriori_prob, double **extrinsic_prob, int puncture_flag, int interleave_flag)
@@ -1303,4 +1310,10 @@ void turbo_decoder(float Snr_dB)
 	free(Posteriori_prob);
 	free(Extrinsic_prob);
 	free(Posteriori_prob_final);
+	for(int i = 0; i < turbo_codeword_length; i++)
+    {
+        free(Turbo_Rx_symbol[i]);
+    }
+	free(Turbo_Rx_symbol);
+	free(random_interleaving_pattern);
 }
