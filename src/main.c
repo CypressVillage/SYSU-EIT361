@@ -26,9 +26,10 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define SNR_START 0
 #define SNR_FINISH 10
 #define SNR_STEP 1
-#define SEQ_NUM 100
+#define SEQ_NUM 10
+#define ITERATION_TIMES 10
 
-#define message_length 5				   // the length of message
+#define message_length 100000				   // the length of message
 #define codeword_length (message_length * 2) // the length of codeword
 DECODE_METHOD decode_method = TURBO;
 
@@ -90,7 +91,7 @@ double **Turbo_Tx_symbol;						// the transmitted symbols for turbo
 double **Turbo_Rx_symbol;						// the received symbols for turbo
 int *turbo_codeword;
 int **turbo_state_table;
-int num_of_iteration = 1; // the number of iteration for turbo decoder
+int num_of_iteration = ITERATION_TIMES; // the number of iteration for turbo decoder
 double sgm_for_turbo;	 // the noise variance for turbo
 
 int main(int argc, char *argv[])
@@ -1001,19 +1002,29 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     //N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0);
 	N0 = (1.0 / turbo_code_rate) / pow(10.0, SNR_dB / 10.0);
 	sgm = sqrt(N0 / 2);
-	double alpha[message_length][4];
-	double beta[message_length][4];
-	double gamma_pie_00[message_length];		// the probability of state transition from 00 to 00
-	double gamma_pie_02[message_length];		// the probability of state transition from 00 to 10
-	double gamma_pie_10[message_length];		// the probability of state transition from 01 to 00
-	double gamma_pie_12[message_length];		// the probability of state transition from 01 to 10
-	double gamma_pie_21[message_length];		// the probability of state transition from 10 to 01
-	double gamma_pie_23[message_length];		// the probability of state transition from 10 to 11
-	double gamma_pie_31[message_length];		// the probability of state transition from 11 to 01
-	double gamma_pie_33[message_length];		// the probability of state transition from 11 to 11
-	double Pch_1[message_length][2];			// the probability of the message bit output, Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
-	double interleave_Pch_1[message_length][2]; // the probability of the message bit output, Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
-	double Pch_2[message_length][2];			// the probability of the parity bit output, Pch_2[i][0] is the probability of the parity bit is 0, Pch_2[i][1] is the probability of the parity bit is 1
+	double **alpha = calloc(turbo_codeword_length * 4, sizeof(double *));
+	double **beta = calloc(turbo_codeword_length * 4, sizeof(double *));
+	double *gamma_pie_00 = calloc(message_length, sizeof(double));		// the probability of state transition from 00 to 00
+	double *gamma_pie_02 = calloc(message_length, sizeof(double));		// the probability of state transition from 00 to 10
+    double *gamma_pie_10 = calloc(message_length, sizeof(double));		// the probability of state transition from 10 to 00
+    double *gamma_pie_12 = calloc(message_length, sizeof(double));		// the probability of state transition from 10 to 10
+    double *gamma_pie_21 = calloc(message_length, sizeof(double));		// the probability of state transition from 01 to 11
+    double *gamma_pie_23 = calloc(message_length, sizeof(double));		// the probability of state transition from 01 to 01
+    double *gamma_pie_31 = calloc(message_length, sizeof(double));		// the probability of state transition from 11 to 01
+    double *gamma_pie_33 = calloc(message_length, sizeof(double));		// the probability of state transition from 11 to 11
+
+    double **Pch_1 = calloc(message_length, sizeof(double*));			// the probability of the message bit output, Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
+    double **interleave_Pch_1 = calloc(message_length, sizeof(double*)); // the probability of the message bit output, Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
+    double **Pch_2 = calloc(message_length, sizeof(double*));			// the probability of the parity bit output, Pch_2[i][0] is the probability of the parity bit is 0, Pch_2[i][1] is the probability of the parity bit is 1
+
+    for(int i = 0; i < message_length; i++)
+    {
+        alpha[i] = calloc(4, sizeof(double));
+        beta[i] = calloc(4, sizeof(double));
+        Pch_1[i] = calloc(2, sizeof(double));
+        interleave_Pch_1[i] = calloc(2, sizeof(double));
+        Pch_2[i] = calloc(2, sizeof(double));
+    }
 
 	double p0, p1; // the probability of the bit is 0 or 1
 	// initialize the alpha and beta
@@ -1176,6 +1187,29 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 		extrinsic_prob[i][0] /= extrinsic_prob_sum;
 		extrinsic_prob[i][1] /= extrinsic_prob_sum;
 	}
+
+    //free the memory
+    for(int i = 0; i < message_length; i++)
+    {
+        free(alpha[i]);
+        free(beta[i]);
+        free(Pch_1[i]);
+        free(interleave_Pch_1[i]);
+        free(Pch_2[i]);
+    }
+    free(alpha);
+    free(beta);
+    free(gamma_pie_00);
+    free(gamma_pie_02);
+    free(gamma_pie_10);
+    free(gamma_pie_12);
+    free(gamma_pie_21);
+    free(gamma_pie_23);
+    free(gamma_pie_31);
+    free(gamma_pie_33);
+    free(Pch_1);
+    free(interleave_Pch_1);
+    free(Pch_2);
 }
 
 void turbo_decoder(float Snr_dB)
