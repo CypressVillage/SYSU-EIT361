@@ -24,12 +24,12 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define DEBUG_VITERBI 1
 
 #define SNR_START 0
-#define SNR_FINISH 10
-#define SNR_STEP 1
-#define SEQ_NUM 1
+#define SNR_FINISH 7
+#define SNR_STEP 0.3
+#define SEQ_NUM 100
 #define ITERATION_TIMES 10
 
-#define message_length 100
+#define message_length 10000
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
@@ -876,28 +876,33 @@ void turbo_encoder(int message_len)
 	int table_row_index;
 	int codeword_length_for_turbo = message_len * 3;
 	turbo_codeword = calloc(message_len * 3, sizeof(int)); // 3 is the code rate
-	// create the random interleaving pattern
-	random_interleaving_pattern = calloc(message_len, sizeof(int));
-	for (int i = 0; i < message_len; i++)
-	{
-		random_interleaving_pattern[i] = i;
-	}
-	shuffle(random_interleaving_pattern, message_len);
-	// interleaving the message
-	int *interleaved_message = calloc(message_len, sizeof(int));
-	for (int i = 0; i < message_len; i++)
-	{
-		interleaved_message[i] = message[random_interleaving_pattern[i]];
-	}
 	// encode the message
+    // first parity bit
 	for (int message_index = 0; message_index < message_len; message_index++)
 	{
-		turbo_codeword[message_index * 3] = message[message_index];							 // message bit
+        //bit tail
+		if(message_index >= message_len - 2){
+            message[message_index] = Second_Register;
+        }
+        turbo_codeword[message_index * 3] = message[message_index];							 // message bit
 		table_row_index = message[message_index] + First_Register * 4 + Second_Register * 2; // the index of the row in the state table , the index is calculated by the input, register1, register2 and their weight
 		turbo_codeword[message_index * 3 + 1] = turbo_state_table[table_row_index][3];		 // the first parity bit
 		Second_Register = First_Register;													 // the next state of the second register
 		First_Register = turbo_state_table[table_row_index][4];								 // the next state of the first register
 	}
+    // create the random interleaving pattern
+    random_interleaving_pattern = calloc(message_len, sizeof(int));
+    for (int i = 0; i < message_len; i++)
+    {
+        random_interleaving_pattern[i] = i;
+    }
+    shuffle(random_interleaving_pattern, message_len);
+    // interleaving the message
+    int *interleaved_message = calloc(message_len, sizeof(int));
+    for (int i = 0; i < message_len; i++)
+    {
+        interleaved_message[i] = message[random_interleaving_pattern[i]];
+    }
 	First_Register = 0;
 	Second_Register = 0;
 	for (int message_index = 0; message_index < message_len; message_index++)
@@ -1043,10 +1048,18 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 //	beta[message_length - 1][1] = 1; // the probability of ending at the state 01
 //	beta[message_length - 1][2] = 0; // the probability of ending at the state 10
 //	beta[message_length - 1][3] = 0; // the probability of ending at the state 11
-    beta[message_length - 1][0] = 0.25; // the probability of ending at the state 00
-    beta[message_length - 1][1] = 0.25; // the probability of ending at the state 01
-    beta[message_length - 1][2] = 0.25; // the probability of ending at the state 10
-    beta[message_length - 1][3] = 0.25; // the probability of ending at the state 11
+    if(interleave_flag){
+        beta[message_length - 1][0] = 0.25; // the probability of ending at the state 00
+        beta[message_length - 1][1] = 0.25; // the probability of ending at the state 01
+        beta[message_length - 1][2] = 0.25; // the probability of ending at the state 10
+        beta[message_length - 1][3] = 0.25; // the probability of ending at the state 11
+    }
+    else{
+        beta[message_length - 1][0] = 1; // the probability of ending at the state 00
+        beta[message_length - 1][1] = 0; // the probability of ending at the state 01
+        beta[message_length - 1][2] = 0; // the probability of ending at the state 10
+        beta[message_length - 1][3] = 0; // the probability of ending at the state 11
+    }
 	// calculate the Pch for each state
 	for (int i = 0; i < message_length; i++)
 	{
