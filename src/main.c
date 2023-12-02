@@ -29,9 +29,12 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define SEQ_NUM 100
 #define ITERATION_TIMES 10
 
-#define message_length 100
+#define message_length 10000
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
+
+int CONV_PARAM_1 = 7;
+int CONV_PARAM_2 = 5;
 
 void statetable();
 void trellis();
@@ -102,14 +105,29 @@ int main(int argc, char *argv[])
 		if (strcmp(argv[1], "turbo") == 0)
 		{
 			decode_method = TURBO;
+			// 第二个参数可以选择加迭代次数
+			if (argc > 2)
+			{
+				num_of_iteration = atoi(argv[2]);
+			}
 		}
 		else if (strcmp(argv[1], "viterbi_hard") == 0)
 		{
 			decode_method = VITERBI_HARD;
+			if (argc > 2)
+			{
+				CONV_PARAM_1 = atoi(argv[2]);
+				CONV_PARAM_2 = atoi(argv[3]);
+			}
 		}
 		else if (strcmp(argv[1], "viterbi_soft") == 0)
 		{
 			decode_method = VITERBI_SOFT;
+			if (argc > 2)
+			{
+				CONV_PARAM_1 = atoi(argv[2]);
+				CONV_PARAM_2 = atoi(argv[3]);
+			}
 		}
 		else if (strcmp(argv[1], "bcjr") == 0)
 		{
@@ -125,7 +143,7 @@ int main(int argc, char *argv[])
 
 	code_rate = (float)message_length / (float)codeword_length;
 	code_rate_real = (float)(message_length - reg_num) / codeword_length;
-	Parameter = get_essential_params(7, 5, 8);
+	Parameter = get_essential_params(CONV_PARAM_1, CONV_PARAM_2, 8);
 	reg_num = Parameter->reg_num; // the number of the register of encoder structure
 	state_num = pow(2, reg_num);  // the number of the state of encoder structure
 	input_len = 1;				  // 每次输入的比特数，在758中为1
@@ -161,7 +179,7 @@ int main(int argc, char *argv[])
 	seq_num = SEQ_NUM;						// 仿真次数
 	fp = fopen("data.txt", "w");
 	// 第一行写入message_length，重复次数，turbo译码迭代次数
-	fprintf(fp, "%d %d %d\n", message_length, seq_num, num_of_iteration);
+	fprintf(fp, "%d %d %d %d %d\n", message_length, seq_num, num_of_iteration, CONV_PARAM_1, CONV_PARAM_2);
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
