@@ -24,7 +24,7 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define DEBUG_VITERBI 1
 
 #define SNR_START 0
-#define SNR_FINISH 7
+#define SNR_FINISH 10
 #define SNR_STEP 1
 #define SEQ_NUM 100
 #define ITERATION_TIMES 10
