@@ -25,11 +25,11 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 
 #define SNR_START 0
 #define SNR_FINISH 7
-#define SNR_STEP 0.3
+#define SNR_STEP 1
 #define SEQ_NUM 100
 #define ITERATION_TIMES 10
 
-#define message_length 10000
+#define message_length 100
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
@@ -160,6 +160,8 @@ int main(int argc, char *argv[])
 	float SNR_step = SNR_STEP;				// SNR步长
 	seq_num = SEQ_NUM;						// 仿真次数
 	fp = fopen("data.txt", "w");
+	// 第一行写入message_length，重复次数，turbo译码迭代次数
+	fprintf(fp, "%d %d %d\n", message_length, seq_num, num_of_iteration);
 
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
