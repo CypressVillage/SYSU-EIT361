@@ -1,6 +1,6 @@
 TARGET_EXEC := build/main
 
-SRCS := src/main.c src/utils.c
+SRCS := src/*.c
 
 LDFLAGS += -lm
 

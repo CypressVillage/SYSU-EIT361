@@ -5,12 +5,10 @@
             "label": "C/C++: gcc.exe 生成活动文件",
             "command": "D:\\env\\msys64\\ucrt64\\bin\\gcc.exe",
             "args": [
-                "utils.c",
-                "utils.h",
                 "-fdiagnostics-color=always",
                 "-Og",
                 "-g",
-                "${file}",
+                "${fileDirname}\\*.c",
                 "-o",
                 "${workspaceFolder}\\build\\${fileBasenameNoExtension}.exe"
             ],
