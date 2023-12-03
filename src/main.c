@@ -29,7 +29,7 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define SEQ_NUM 100
 #define ITERATION_TIMES 10
 
-#define message_length 10000
+#define message_length 100000
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
