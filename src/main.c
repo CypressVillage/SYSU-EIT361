@@ -1036,7 +1036,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     double turbo_code_rate = (double)message_length / turbo_codeword_length;
     // N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0);
     N0 = (1.0 / turbo_code_rate) / pow(10.0, SNR_dB / 10.0);
-    sgm = sqrt(N0 / 2);
+    sgm = sqrt(((1.0 * 3) / pow(10.0, (float)(SNR_dB * 3) / 10.0)) / 2);
     double **alpha = calloc(turbo_codeword_length * 4, sizeof(double *));
     double **beta = calloc(turbo_codeword_length * 4, sizeof(double *));
     double *gamma_pie_00 = calloc(message_length, sizeof(double)); // the probability of state transition from 00 to 00
