@@ -5,13 +5,13 @@ build_path = 'build'
 
 calc_actions = (
     'base',       # 计算并保存数据
-    'turbo',      # 计算并保存不同迭代次数turbo译码数据
-    'viterbi',    # 计算并保存不同结构卷积码编码数据
+    # 'turbo',      # 计算并保存不同迭代次数turbo译码数据
+    # 'viterbi',    # 计算并保存不同结构卷积码编码数据
 )
 plot_actions = (
     'base',       # 画图
-    'turbo',      # 画不同迭代次数turbo译码图
-    'viterbi'     # 画不同结构卷积码编码图
+    # 'turbo',      # 画不同迭代次数turbo译码图
+    # 'viterbi'     # 画不同结构卷积码编码图
 )
 
 arg_map = {
@@ -74,7 +74,7 @@ for action in calc_actions:
 if plot_actions:
     import matplotlib.pyplot as plt
     plt.rcParams['font.sans-serif'] = ['SimHei']
-    plt.rcParams['axes.unicode_minus'] = False
+    # plt.rcParams['axes.unicode_minus'] = False
 
 for action in plot_actions:
     plt.figure()
@@ -97,7 +97,7 @@ for action in plot_actions:
     turbo译码迭代次数: {iter_times}
     卷积码类型: ({conv_1}, {conv_2})
     '''
-    plt.text(0.5, 0.5, infostr, fontsize=10, transform=plt.gca().transAxes)
+    # plt.text(0.5, 0.5, infostr, fontsize=10, transform=plt.gca().transAxes)
     plt.xlabel('SNR(dB)')
     plt.ylabel('BER')
     plt.grid()

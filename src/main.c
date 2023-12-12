@@ -24,12 +24,12 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define DEBUG_VITERBI 1
 
 #define SNR_START 0
-#define SNR_FINISH 10
-#define SNR_STEP 1
+#define SNR_FINISH 5
+#define SNR_STEP 0.1
 #define SEQ_NUM 100
 #define ITERATION_TIMES 10
 
-#define message_length 100000
+#define message_length 10000
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
 	for (SNR = start; SNR <= finish; SNR += SNR_step)
 	{
 		// channel noise
-		N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0); // BPSK调制，码率为1，所以这里是1/code_rate
+		N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0);
 		sgm = sqrt(N0 / 2);
 
 		// turbo channel noise
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
             sgm_for_turbo = sgm; // if puncture_flag = 1, code rate = 1/2
         }
         else{
-            sgm_for_turbo = sqrt( ((1.0 * 3) / pow(10.0, (float)(SNR) / 10.0)) / 2 ); // if puncture_flag = 0, code rate = 1/3
+            sgm_for_turbo = sqrt( ((1.0 * 3) / pow(10.0, (float)(SNR*3) / 10.0)) / 2 ); // if puncture_flag = 0, code rate = 1/3
         }
 
 		bit_error = 0;
@@ -895,7 +895,7 @@ void turbo_encoder(int message_len)
 	int Second_Register = 0;
 	int table_row_index;
 	int codeword_length_for_turbo = message_len * 3;
-	turbo_codeword = calloc(message_len * 3, sizeof(int)); // 3 is the code rate
+	turbo_codeword = calloc(codeword_length_for_turbo, sizeof(int)); // 3 is the code rate
 	// encode the message
     // first parity bit
 	for (int message_index = 0; message_index < message_len; message_index++)
@@ -1045,9 +1045,9 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     double *gamma_pie_31 = calloc(message_length, sizeof(double));		// the probability of state transition from 11 to 01
     double *gamma_pie_33 = calloc(message_length, sizeof(double));		// the probability of state transition from 11 to 11
 
-    double **Pch_1 = calloc(message_length, sizeof(double*));			// the probability of the message bit output, Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
-    double **interleave_Pch_1 = calloc(message_length, sizeof(double*)); // the probability of the message bit output, Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
-    double **Pch_2 = calloc(message_length, sizeof(double*));			// the probability of the parity bit output, Pch_2[i][0] is the probability of the parity bit is 0, Pch_2[i][1] is the probability of the parity bit is 1
+    double **Pch_1 = calloc(message_length, sizeof(double*));			// 信道观察概率  Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
+    double **interleave_Pch_1 = calloc(message_length, sizeof(double*)); // 交织器交织后的信道观察概率？？ Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
+    double **Pch_2 = calloc(message_length, sizeof(double*));			// 校验位的信道观察概率？？？ Pch_2[i][0] is the probability of the parity bit is 0, Pch_2[i][1] is the probability of the parity bit is 1
 
     for(int i = 0; i < message_length; i++)
     {
@@ -1206,9 +1206,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
 	for (int i = 0; i < message_length; i++)
 	{
 		// posteriori_prob = sigma {alpha * gamma * beta}
-		posteriori_prob[i][0] = 832942.902493;
 		posteriori_prob[i][0] = alpha[i][0] * gamma_pie_00[i] * beta[i][0] + alpha[i][1] * gamma_pie_12[i] * beta[i][2] + alpha[i][2] * gamma_pie_21[i] * beta[i][1] + alpha[i][3] * gamma_pie_33[i] * beta[i][3];
-		double aaaaa = alpha[i][0] * gamma_pie_00[i] * beta[i][0] + alpha[i][1] * gamma_pie_12[i] * beta[i][2] + alpha[i][2] * gamma_pie_21[i] * beta[i][1] + alpha[i][3] * gamma_pie_33[i] * beta[i][3];
 		posteriori_prob[i][1] = alpha[i][0] * gamma_pie_02[i] * beta[i][2] + alpha[i][1] * gamma_pie_10[i] * beta[i][0] + alpha[i][2] * gamma_pie_23[i] * beta[i][3] + alpha[i][3] * gamma_pie_31[i] * beta[i][1];
 		// normalize
 		double posteriori_prob_sum = posteriori_prob[i][0] + posteriori_prob[i][1];
