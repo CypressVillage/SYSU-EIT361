@@ -109,9 +109,9 @@ for action in plot_actions:
     # '''
     # plt.text(0.5, 0.5, infostr, fontsize=10, transform=plt.gca().transAxes)
     if action == 'turbo':
-        plt.xlabel('Eb/N0(dB)')
-    else:
         plt.xlabel('SNR(dB)')
+    else:
+        plt.xlabel('Eb/N0(dB)')
     plt.ylabel('BER')
     plt.grid()
     plt.legend()
