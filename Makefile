@@ -2,15 +2,15 @@ TARGET_EXEC := build/main
 
 SRCS := src/*.c
 
-LDFLAGS += -lm
+COMPLIE_FLAGS += -lm -fopenmp
 
 .PHONY: debug
 debug:
-	$(CC) -Og -fsanitize=address -o $(TARGET_EXEC) $(SRCS) $(CFLAGS) $(LDFLAGS)
+	$(CC) -Og -fsanitize=address -o $(TARGET_EXEC) $(SRCS) $(CFLAGS) $(LDFLAGS) $(COMPLIE_FLAGS)
 
 .PHONY: release
 release:
-	$(CC) -O3 -o $(TARGET_EXEC) $(SRCS) $(CFLAGS) $(LDFLAGS)
+	$(CC) -O3 -o $(TARGET_EXEC) $(SRCS) $(CFLAGS) $(LDFLAGS) $(COMPLIE_FLAGS)
 	strip $(TARGET_EXEC)
 
 .PHONY: clean
