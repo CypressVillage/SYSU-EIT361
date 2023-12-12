@@ -1,3 +1,4 @@
+#include <omp.h>
 /***************************************************
 Channel Coding Course Work: conolutional codes
 This program template has given the message generator, BPSK modulation, AWGN channel model and BPSK demodulation,
@@ -32,7 +33,7 @@ static double SNR_STEP = 1;
 static int SEQ_NUM = 100;
 static int ITERATION_TIMES = 10;
 
-#define message_length 100
+#define message_length 10000
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
@@ -1063,6 +1064,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     double **interleave_Pch_1 = calloc(message_length, sizeof(double *)); // 交织器交织后的信道观察概率？？ Pch_1[i][0] is the probability of the message bit is 0, Pch_1[i][1] is the probability of the message bit is 1
     double **Pch_2 = calloc(message_length, sizeof(double *));            // 校验位的信道观察概率？？？ Pch_2[i][0] is the probability of the parity bit is 0, Pch_2[i][1] is the probability of the parity bit is 1
 
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         alpha[i] = calloc(4, sizeof(double));
@@ -1097,6 +1099,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
         beta[message_length - 1][3] = 0; // the probability of ending at the state 11
     }
     // calculate the Pch for each state
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         // 0 is mapped to (1,0) and 1 is mapped tp (-1,0)
@@ -1158,11 +1161,13 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     // interleaving the probability of the message bit for the second parity bit
     if (interleave_flag)
     {
+        #pragma omp parallel for
         for (int i = 0; i < message_length; i++)
         {
             interleave_Pch_1[i][0] = Pch_1[random_interleaving_pattern[i]][0];
             interleave_Pch_1[i][1] = Pch_1[random_interleaving_pattern[i]][1];
         }
+        #pragma omp parallel for
         for (int i = 0; i < message_length; i++)
         {
             Pch_1[i][0] = interleave_Pch_1[i][0];
@@ -1171,6 +1176,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     }
 
     // calculate the gamma for each state
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         // 0 is mapped to (1,0) and 1 is mapped tp (-1,0)
@@ -1185,6 +1191,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     }
 
     // calculate the alpha
+    //#pragma omp parallel for
     for (int i = 1; i < message_length; i++)
     {
         alpha[i][0] = alpha[i - 1][0] * gamma_pie_00[i - 1] + alpha[i - 1][1] * gamma_pie_10[i - 1];
@@ -1200,6 +1207,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     }
 
     // calculate the beta
+    //#pragma omp parallel for
     for (int i = message_length - 2; i >= 0; i--)
     {
         beta[i][0] = beta[i + 1][0] * gamma_pie_00[i + 1] + beta[i + 1][2] * gamma_pie_02[i + 1];
@@ -1219,6 +1227,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     }
 
     // calculate the posteriori probability
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         // posteriori_prob = sigma {alpha * gamma * beta}
@@ -1231,6 +1240,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     }
 
     // calculate the extrinsic probability
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         // extrinsic_prob = posteriori_prob / priori_prob
@@ -1243,6 +1253,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     }
 
     // free the memory
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         free(alpha[i]);
@@ -1272,6 +1283,7 @@ void turbo_decoder(float Snr_dB)
     double **Posteriori_prob = calloc(message_length, sizeof(double *));
     double **Extrinsic_prob = calloc(message_length, sizeof(double *));
     double **Posteriori_prob_final = calloc(message_length, sizeof(double *));
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         Priori_prob[i] = calloc(2, sizeof(double));
@@ -1280,16 +1292,19 @@ void turbo_decoder(float Snr_dB)
         Posteriori_prob_final[i] = calloc(2, sizeof(double));
     }
     // initialize the priori probability
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         Priori_prob[i][0] = 0.5;
         Priori_prob[i][1] = 0.5;
     }
     // turbo decoding
+    // #pragma omp parallel for
     for (int i = 0; i < ITERATION_TIMES; i++)
     {
         BCJR_decoder_for_turbo(Snr_dB, Priori_prob, Posteriori_prob, Extrinsic_prob, puncture_flag, 0);
         // interleaving the probabilities for the BCJR(2)
+        #pragma omp parallel for
         for (int j = 0; j < message_length; j++)
         {
             Priori_prob[j][0] = Extrinsic_prob[random_interleaving_pattern[j]][0];
@@ -1320,6 +1335,7 @@ void turbo_decoder(float Snr_dB)
 
         BCJR_decoder_for_turbo(Snr_dB, Priori_prob, Posteriori_prob, Extrinsic_prob, puncture_flag, 1);
         // inverse interleaving the probabilities for the BCJR(1)
+        #pragma omp parallel for
         for (int j = 0; j < message_length; j++)
         {
             Priori_prob[random_interleaving_pattern[j]][0] = Extrinsic_prob[j][0];
@@ -1327,12 +1343,14 @@ void turbo_decoder(float Snr_dB)
         }
     }
     // inverse the posteriori to get the final posteriori probability
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         Posteriori_prob_final[random_interleaving_pattern[i]][0] = Posteriori_prob[i][0];
         Posteriori_prob_final[random_interleaving_pattern[i]][1] = Posteriori_prob[i][1];
     }
     // compare the posteriori probability to get the decoded message
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         if (Posteriori_prob_final[i][0] > Posteriori_prob_final[i][1])
@@ -1345,6 +1363,7 @@ void turbo_decoder(float Snr_dB)
         }
     }
     // free the memory
+    #pragma omp parallel for
     for (int i = 0; i < message_length; i++)
     {
         free(Priori_prob[i]);

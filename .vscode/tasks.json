@@ -6,6 +6,7 @@
             "command": "D:\\env\\msys64\\ucrt64\\bin\\gcc.exe",
             "args": [
                 "-fdiagnostics-color=always",
+                "-fopenmp",
                 "-Og",
                 "-g",
                 "${fileDirname}\\*.c",
