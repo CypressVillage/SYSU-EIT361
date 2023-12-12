@@ -23,13 +23,16 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 #define DEBUG_TRELLIS 0
 #define DEBUG_VITERBI 1
 
-#define SNR_START 0
-#define SNR_FINISH 5
-#define SNR_STEP 0.1
-#define SEQ_NUM 100
-#define ITERATION_TIMES 10
+// 卷积码：0-10，步长1
+// turbo码：0-5，步长0.1
 
-#define message_length 10000
+static double SNR_START = 0;
+static double SNR_FINISH = 10;
+static double SNR_STEP = 1;
+static int SEQ_NUM = 100;
+static int ITERATION_TIMES = 10;
+
+#define message_length 100
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
@@ -94,51 +97,59 @@ double **Turbo_Tx_symbol;                       // the transmitted symbols for t
 double **Turbo_Rx_symbol;                       // the received symbols for turbo
 int *turbo_codeword;
 int **turbo_state_table;
-int num_of_iteration = ITERATION_TIMES; // the number of iteration for turbo decoder
 double sgm_for_turbo;                   // the noise variance for turbo
 
 int main(int argc, char *argv[])
 {
-    // 译码模式可以传参
+    // 译码模式可以传参，前4个参数是START, FINISH, STEP, SEQ_NUM
     if (argc > 1)
     {
-        if (strcmp(argv[1], "turbo") == 0)
+        // 参数是浮点数
+        SNR_START = atof(argv[1]);
+        SNR_FINISH = atof(argv[2]);
+        SNR_STEP = atof(argv[3]);
+        SEQ_NUM = atoi(argv[4]);
+
+        if (argc > 5)
         {
-            decode_method = TURBO;
-            // 第二个参数可以选择加迭代次数
-            if (argc > 2)
+            if (strcmp(argv[5], "turbo") == 0)
             {
-                num_of_iteration = atoi(argv[2]);
+                decode_method = TURBO;
+                // 第二个参数可以选择加迭代次数
+                if (argc > 6)
+                {
+                    ITERATION_TIMES = atoi(argv[6]);
+                }
             }
-        }
-        else if (strcmp(argv[1], "viterbi_hard") == 0)
-        {
-            decode_method = VITERBI_HARD;
-            if (argc > 2)
+            else if (strcmp(argv[5], "viterbi_hard") == 0)
             {
-                CONV_PARAM_1 = atoi(argv[2]);
-                CONV_PARAM_2 = atoi(argv[3]);
+                decode_method = VITERBI_HARD;
+                if (argc > 6)
+                {
+                    CONV_PARAM_1 = atoi(argv[6]);
+                    CONV_PARAM_2 = atoi(argv[7]);
+                }
             }
-        }
-        else if (strcmp(argv[1], "viterbi_soft") == 0)
-        {
-            decode_method = VITERBI_SOFT;
-            if (argc > 2)
+            else if (strcmp(argv[5], "viterbi_soft") == 0)
             {
-                CONV_PARAM_1 = atoi(argv[2]);
-                CONV_PARAM_2 = atoi(argv[3]);
+                decode_method = VITERBI_SOFT;
+                if (argc > 6)
+                {
+                    CONV_PARAM_1 = atoi(argv[6]);
+                    CONV_PARAM_2 = atoi(argv[7]);
+                }
             }
+            else if (strcmp(argv[5], "bcjr") == 0)
+            {
+                decode_method = BCJR;
+            }
+            else
+            {
+                printf("Error: unknown decode method\n");
+                exit(1);
+            }
+            printf("Decode method: %s\n", argv[5]);
         }
-        else if (strcmp(argv[1], "bcjr") == 0)
-        {
-            decode_method = BCJR;
-        }
-        else
-        {
-            printf("Error: unknown decode method\n");
-            exit(1);
-        }
-        printf("Decode method: %s\n", argv[1]);
     }
 
     code_rate = (float)message_length / (float)codeword_length;
@@ -179,7 +190,7 @@ int main(int argc, char *argv[])
     seq_num = SEQ_NUM;                      // 仿真次数
     fp = fopen("data.txt", "w");
     // 第一行写入message_length，重复次数，turbo译码迭代次数
-    fprintf(fp, "%d %d %d %d %d\n", message_length, seq_num, num_of_iteration, CONV_PARAM_1, CONV_PARAM_2);
+    fprintf(fp, "%d %d %d %d %d\n", message_length, seq_num, ITERATION_TIMES, CONV_PARAM_1, CONV_PARAM_2);
 
     for (SNR = start; SNR <= finish; SNR += SNR_step)
     {
@@ -1275,7 +1286,7 @@ void turbo_decoder(float Snr_dB)
         Priori_prob[i][1] = 0.5;
     }
     // turbo decoding
-    for (int i = 0; i < num_of_iteration; i++)
+    for (int i = 0; i < ITERATION_TIMES; i++)
     {
         BCJR_decoder_for_turbo(Snr_dB, Priori_prob, Posteriori_prob, Extrinsic_prob, puncture_flag, 0);
         // interleaving the probabilities for the BCJR(2)

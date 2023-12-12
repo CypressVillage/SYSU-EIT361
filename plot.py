@@ -4,26 +4,35 @@ assets_path = 'assets'
 build_path = 'build'
 
 calc_actions = (
-    'base',       # 计算并保存数据
-    # 'turbo',      # 计算并保存不同迭代次数turbo译码数据
-    # 'viterbi',    # 计算并保存不同结构卷积码编码数据
+    'base',       # 计算并保存不同卷积码译码方法数据
+    'turbo',      # 计算并保存不同迭代次数turbo译码数据
+    'viterbi',    # 计算并保存不同结构卷积码数据
 )
 plot_actions = (
-    'base',       # 画图
-    # 'turbo',      # 画不同迭代次数turbo译码图
-    # 'viterbi'     # 画不同结构卷积码编码图
+    'base',       # 画不同卷积码译码方法图
+    'turbo',      # 画不同迭代次数turbo译码图
+    'viterbi'     # 画不同结构卷积码编码图
 )
 
+
+size_map = {
+    # SNR_start SNR_end SNR_step repeat_times
+    'base': '0 10 1 100',
+    'turbo': '-1 2 0.1 100',
+    'viterbi': '0 10 1 100',
+}
 arg_map = {
     'base': (
-        'viterbi_hard',
-        'viterbi_soft',
-        'bcjr',
-        'turbo'
+        f'{method}'
+        for method in (
+            'viterbi_hard',
+            'viterbi_soft',
+            'bcjr',
+        )
     ),
     'turbo': (
         f'turbo {iter_time}'
-        for iter_time in range(1, 10)
+        for iter_time in [1, 2, 4, 8]
     ),
     'viterbi': (
         f'{method} {conv1} {conv2}'
@@ -35,14 +44,14 @@ arg_map = {
             (7, 5),
             (15, 13),
             (23, 35),
-            (133, 171),
+            (171, 133),
         )
     )
 }
 label_map = {
     'base': lambda arg: arg,
     'turbo': lambda arg: arg.replace('turbo', 'iter'),
-    'viterbi': lambda arg: arg.replace('viterbi_', '').replace('hard', '硬判决').replace('soft', '软判决')
+    'viterbi': lambda arg: arg.replace('viterbi_', '')
 }
 
 
@@ -67,14 +76,12 @@ for action in calc_actions:
         if os.path.exists(output_file_name):
             os.remove(output_file_name)
 
-        os.system(path_with_os(f'cd {assets_path} && ../{build_path}/main.exe {arg}'))
+        os.system(path_with_os(f'cd {assets_path} && ../{build_path}/main.exe {size_map[action]} {arg}'))
         os.rename(f'{assets_path}/data.txt', output_file_name)
 
 
 if plot_actions:
     import matplotlib.pyplot as plt
-    plt.rcParams['font.sans-serif'] = ['SimHei']
-    # plt.rcParams['axes.unicode_minus'] = False
 
 for action in plot_actions:
     plt.figure()
@@ -89,16 +96,22 @@ for action in plot_actions:
             for line in f.readlines():
                 snr.append(float(line.split()[0]))
                 ber.append(float(line.split()[1]))
+
+        # 清洗数据，删去ber=0的点
+        snr, ber = zip(*[(s, b) for s, b in zip(snr, ber) if b != 0])
         plt.semilogy(snr, ber, '-o', label=label_map[action](arg))
 
-    infostr = f'''
-    信息序列长度: {msg_len}
-    重复次数: {repeat_times}
-    turbo译码迭代次数: {iter_times}
-    卷积码类型: ({conv_1}, {conv_2})
-    '''
+    # infostr = f'''
+    # 信息序列长度: {msg_len}
+    # 重复次数: {repeat_times}
+    # turbo译码迭代次数: {iter_times}
+    # 卷积码类型: ({conv_1}, {conv_2})
+    # '''
     # plt.text(0.5, 0.5, infostr, fontsize=10, transform=plt.gca().transAxes)
-    plt.xlabel('SNR(dB)')
+    if action == 'turbo':
+        plt.xlabel('Eb/N0(dB)')
+    else:
+        plt.xlabel('SNR(dB)')
     plt.ylabel('BER')
     plt.grid()
     plt.legend()
