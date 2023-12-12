@@ -22,7 +22,7 @@ size_map = {
     'viterbi': '0 10 1 100',
 }
 arg_map = {
-    'base': (
+    'base': tuple(
         f'{method}'
         for method in (
             'viterbi_hard',
@@ -30,11 +30,11 @@ arg_map = {
             'bcjr',
         )
     ),
-    'turbo': (
+    'turbo': tuple(
         f'turbo {iter_time}'
         for iter_time in [1, 2, 4, 8]
     ),
-    'viterbi': (
+    'viterbi': tuple(
         f'{method} {conv1} {conv2}'
         for method in (
             'viterbi_hard',
