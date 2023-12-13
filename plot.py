@@ -38,7 +38,7 @@ arg_map = {
         f'{method} {conv1} {conv2}'
         for method in (
             'viterbi_hard',
-            'viterbi_soft'
+            'viterbi_soft',
         )
         for (conv1, conv2) in (
             (7, 5),
