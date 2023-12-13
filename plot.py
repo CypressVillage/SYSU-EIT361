@@ -11,7 +11,7 @@ calc_actions = (
 plot_actions = (
     'base',       # 画不同卷积码译码方法图
     'turbo',      # 画不同迭代次数turbo译码图
-    'viterbi'     # 画不同结构卷积码编码图
+    'viterbi',     # 画不同结构卷积码编码图
 )
 
 
