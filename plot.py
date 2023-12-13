@@ -4,14 +4,14 @@ assets_path = 'assets'
 build_path = 'build'
 
 calc_actions = (
-    # 'base',       # 计算并保存不同卷积码译码方法数据
+    'base',       # 计算并保存不同卷积码译码方法数据
     'turbo',      # 计算并保存不同迭代次数turbo译码数据
-    # 'viterbi',    # 计算并保存不同结构卷积码数据
+    'viterbi',    # 计算并保存不同结构卷积码数据
 )
 plot_actions = (
-    # 'base',       # 画不同卷积码译码方法图
+    'base',       # 画不同卷积码译码方法图
     'turbo',      # 画不同迭代次数turbo译码图
-    # 'viterbi'     # 画不同结构卷积码编码图
+    'viterbi'     # 画不同结构卷积码编码图
 )
 
 
@@ -108,10 +108,8 @@ for action in plot_actions:
     # 卷积码类型: ({conv_1}, {conv_2})
     # '''
     # plt.text(0.5, 0.5, infostr, fontsize=10, transform=plt.gca().transAxes)
-    if action == 'turbo':
-        plt.xlabel('SNR(dB)')
-    else:
-        plt.xlabel('Eb/N0(dB)')
+
+    plt.xlabel('Eb/N0(dB)')
     plt.ylabel('BER')
     plt.grid()
     plt.legend()

@@ -33,7 +33,8 @@ static double SNR_STEP = 1;
 static int SEQ_NUM = 100;
 static int ITERATION_TIMES = 10;
 
-#define message_length 1000000
+// #define message_length 1000000 // assets_final
+#define message_length 10000
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
