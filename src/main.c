@@ -33,7 +33,7 @@ static double SNR_STEP = 1;
 static int SEQ_NUM = 100;
 static int ITERATION_TIMES = 10;
 
-#define message_length 10000
+#define message_length 1000000
 #define codeword_length (message_length * 2)
 DECODE_METHOD decode_method = TURBO;
 
@@ -206,7 +206,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            sgm_for_turbo = sqrt(((1.0 * 3) / pow(10.0, (float)(SNR * 3) / 10.0)) / 2); // if puncture_flag = 0, code rate = 1/3
+            sgm_for_turbo = sqrt(((1.0 * 3) / pow(10.0, (float)(SNR) / 10.0)) / 2); // if puncture_flag = 0, code rate = 1/3
         }
 
         bit_error = 0;
@@ -1048,7 +1048,7 @@ void BCJR_decoder_for_turbo(float SNR_dB, double **priori_prob, double **posteri
     double turbo_code_rate = (double)message_length / turbo_codeword_length;
     // N0 = (1.0 / code_rate) / pow(10.0, (float)(SNR) / 10.0);
     N0 = (1.0 / turbo_code_rate) / pow(10.0, SNR_dB / 10.0);
-    sgm = sqrt(((1.0 * 3) / pow(10.0, (float)(SNR_dB * 3) / 10.0)) / 2);
+    sgm = sqrt(N0 / 2);
     double **alpha = calloc(turbo_codeword_length * 4, sizeof(double *));
     double **beta = calloc(turbo_codeword_length * 4, sizeof(double *));
     double *gamma_pie_00 = calloc(message_length, sizeof(double)); // the probability of state transition from 00 to 00

@@ -4,22 +4,22 @@ assets_path = 'assets'
 build_path = 'build'
 
 calc_actions = (
-    'base',       # 计算并保存不同卷积码译码方法数据
+    # 'base',       # 计算并保存不同卷积码译码方法数据
     'turbo',      # 计算并保存不同迭代次数turbo译码数据
-    'viterbi',    # 计算并保存不同结构卷积码数据
+    # 'viterbi',    # 计算并保存不同结构卷积码数据
 )
 plot_actions = (
-    'base',       # 画不同卷积码译码方法图
+    # 'base',       # 画不同卷积码译码方法图
     'turbo',      # 画不同迭代次数turbo译码图
-    'viterbi'     # 画不同结构卷积码编码图
+    # 'viterbi'     # 画不同结构卷积码编码图
 )
 
 
 size_map = {
     # SNR_start SNR_end SNR_step repeat_times
-    'base': '0 10 1 100',
-    'turbo': '-1 2 0.1 100',
-    'viterbi': '0 10 1 100',
+    'base': '0 10 1 10',
+    'turbo': '0 8.1 1 10',
+    'viterbi': '0 10 1 10',
 }
 arg_map = {
     'base': tuple(
@@ -32,7 +32,7 @@ arg_map = {
     ),
     'turbo': tuple(
         f'turbo {iter_time}'
-        for iter_time in [1, 2, 4, 8]
+        for iter_time in [1, 2, 4, 8, 16, 32]
     ),
     'viterbi': tuple(
         f'{method} {conv1} {conv2}'
