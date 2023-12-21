@@ -11,7 +11,7 @@ If you have any question, please contact me via e-mail: yanglj39@mail2.sysu.edu.
 1. 原代码中 state_num 更改为 reg_num，为寄存器数量；state_num 为寄存器组的状态数量，state_num = 2^reg_num
 */
 
-// #define  _CRT_SECURE_NO_WARNINGS // vs取消scanf报错
+#define  _CRT_SECURE_NO_WARNINGS // vs取消scanf报错
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
